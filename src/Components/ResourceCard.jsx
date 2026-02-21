@@ -1,215 +1,292 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useMemo } from "react";
+import {
+  Search,
+  Filter,
+  ArrowUpDown,
+  Eye,
+  Shuffle,
+  Heart,
+  Plus,
+  Share2,
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  CheckCircle2,
+  MessageSquare,
+  Printer
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
-const ResourceCard = ({ resource }) => {
-  const [showModal, setShowModal] = useState(false);
+/* ================= MOCK DATA ================= */
 
-  // Derived content
-  const title = resource.topic?.name
-    ? `${resource.topic.name} Paper ${resource.paperNumber}`
-    : `Paper ${resource.paperNumber}`;
+// const resourceArray = Array.from({ length: 20 }).map((_, i) => ({
+//   id: `res-${i}`,
+//   year: "2017",
+//   season: "Winter",
+//   paperNumber: "23",
+//   variant: "1",
+//   topic: { name: "Surds, indices, log" },
+//   questionPaper: [
+//     {
+//       url: `https://picsum.photos/seed/${i + 100}/800/1000`,
+//       fileType: "image"
+//     }
+//   ],
+//   markScheme: { url: "#" },
+//   explanation: { url: "#" },
+//   specialComment: { url: "#" }
+// }));
 
-  const topicName = resource.topic?.name || resource.topicId || "Topic";
+/* ================= MAIN COMPONENT ================= */
 
-  // 🔥 Now questionPaper is an ARRAY
-  const questionFiles = resource.questionPaper || [];
-  console.log(questionFiles)
-  const markSchemeUrl = resource.markScheme?.url;
-  const explanationUrl = resource.explanation?.url;
-  const commentsUrl = resource.specialComment?.url;
+export default function QuestionExplorer({resource,board,subject,topic}) {
+  const resourceArray=resource
+  // console.log(resourceArray)
+  const [selectedId, setSelectedId] = useState(resourceArray[0]._id);
+  // console.log("id is",resourceArray[0]._id)
+  const [viewMode, setViewMode] = useState("question");
 
-  // ESC key handler
-  useEffect(() => {
-    const handleEsc = (event) => {
-      if (event.key === "Escape") setShowModal(false);
-    };
+  const selectedResource = useMemo(() => {
+    return resourceArray.find(r => r._id === selectedId);
+  }, [selectedId]);
 
-    if (showModal) {
-      document.addEventListener("keydown", handleEsc);
-      document.body.style.overflow = "hidden";
+  const handleNext = () => {
+    const currentIndex = resourceArray.findIndex(r => r._id === selectedId);
+    if (currentIndex < resourceArray.length - 1) {
+      setSelectedId(resourceArray[currentIndex + 1]._id);
     }
+  };
 
-    return () => {
-      document.removeEventListener("keydown", handleEsc);
-      document.body.style.overflow = "unset";
-    };
-  }, [showModal]);
-
-  const toggleModal = useCallback(() => {
-    setShowModal((prev) => !prev);
-  }, []);
+  const handlePrev = () => {
+    const currentIndex = resourceArray.findIndex(r => r._id === selectedId);
+    if (currentIndex > 0) {
+      setSelectedId(resourceArray[currentIndex - 1]._id);
+    }
+  };
 
   return (
-    <>
-      {/* ================= CARD ================= */}
-      <div className="bg-white rounded-2xl overflow-hidden border border-slate-200 hover:border-indigo-400 hover:shadow-2xl hover:shadow-indigo-100/40 transition-all duration-500 group relative flex flex-col h-full">
-        <div className="p-6 flex flex-col h-full">
-          <div className="flex flex-wrap gap-2 mb-4">
-            <span className="bg-indigo-50 text-indigo-700 text-[10px] uppercase tracking-widest font-bold px-3 py-1.5 rounded-full border border-indigo-100">
-              {resource.year} • {resource.season}
-            </span>
-            <span className="bg-slate-50 text-slate-600 text-[10px] uppercase tracking-widest font-bold px-3 py-1.5 rounded-full border border-slate-100">
-              P{resource.paperNumber} / V{resource.variant}
-            </span>
+    <div className="flex h-screen bg-[#F8FAFC] text-slate-900 font-sans overflow-hidden">
+      
+      {/* ================= LEFT SIDEBAR ================= */}
+      
+      <aside className="w-80 border-r border-slate-200 bg-white flex flex-col shadow-sm z-10">
+        
+        {/* Sidebar Header */}
+        <div className="p-4 border-b border-slate-100">
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="font-bold text-lg tracking-tight text-indigo-600">
+              ExamMaster
+            </h1>
+            <div className="flex gap-1">
+              <button className="p-1.5 hover:bg-slate-100 rounded-md text-slate-400 transition-colors">
+                <Search size={18} />
+              </button>
+            </div>
           </div>
 
-          <h3 className="text-xl font-bold text-slate-800 mb-2 leading-tight group-hover:text-indigo-700 transition-colors duration-300">
-            {title}
-          </h3>
+          <div className="grid grid-cols-4 gap-1">
+            <SidebarAction icon={<ArrowUpDown size={14} />} label="Asc" />
+            <SidebarAction icon={<Filter size={14} />} label="1060" active />
+            <SidebarAction icon={<Eye size={14} />} label="1-25" />
+            <SidebarAction icon={<Shuffle size={14} />} label="Random" />
+          </div>
+        </div>
 
-          <p className="text-sm text-slate-500 mb-8 flex-grow">
-            Master {topicName} concepts with curated previous year papers and expert solutions.
-          </p>
-
-          <div className="grid grid-cols-2 gap-3 mt-auto">
-            {/* QUESTION BUTTON */}
+        {/* Sidebar List */}
+        <div className="flex-grow overflow-y-auto custom-scrollbar">
+          {resourceArray.map((resource) => (
             <button
-              onClick={toggleModal}
-              className="flex items-center justify-center gap-2 bg-slate-50 hover:bg-indigo-600 text-slate-700 hover:text-white py-3 rounded-xl border border-slate-100 hover:border-indigo-600 transition-all duration-300 text-xs font-bold shadow-sm"
+              key={resource._id}
+              onClick={() => setSelectedId(resource._id)}
+              className={`w-full text-left px-4 py-3 border-b border-slate-50 flex items-center justify-between group transition-all duration-200 ${
+                selectedId === resource._id
+                  ? "bg-indigo-50/50 border-l-4 border-l-indigo-500"
+                  : "hover:bg-slate-50 border-l-4 border-l-transparent"
+              }`}
             >
-              <i className="fas fa-expand-alt"></i>
-              Question
+              <div className="flex flex-col gap-0.5">
+                <span
+                  className={`text-[11px] font-bold uppercase tracking-wider ${
+                    selectedId === resource._id
+                      ? "text-indigo-600"
+                      : "text-slate-400"
+                  }`}
+                >
+                  {subject}/{resource.paperNumber}_{resource.season}_{resource.year}_Q{resource.variant}
+                 
+                </span>
+              </div>
+              {/* <Heart
+                size={14}
+                className={`${
+                  selectedId === resource._id
+                    ? "text-indigo-400 fill-indigo-400"
+                    : "text-slate-300 group-hover:text-slate-400"
+                } transition-colors`}
+              /> */}
+            </button>
+          ))}
+        </div>
+
+      </aside>
+
+      {/* ================= MAIN CONTENT ================= */}
+
+      <main className="flex-grow flex flex-col bg-[#F1F5F9] relative overflow-hidden">
+
+        {/* Toolbar */}
+        <header className="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-6 shadow-sm z-20">
+
+          <div className="flex items-center gap-4">
+            <ToolbarButton icon={<Plus size={18} />} label="Add to" />
+            <ToolbarButton icon={<Share2 size={18} />} label="Share" />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="flex bg-slate-100 p-1 rounded-lg mr-4">
+              <button
+                onClick={() => setViewMode("question")}
+                className={`px-4 py-1.5 rounded-md text-xs font-bold ${
+                  viewMode === "question"
+                    ? "bg-white text-indigo-600 shadow-sm"
+                    : "text-slate-500"
+                }`}
+              >
+                Question
+              </button>
+
+              <button
+                onClick={() => setViewMode("answer")}
+                className={`px-4 py-1.5 rounded-md text-xs font-bold ${
+                  viewMode === "answer"
+                    ? "bg-white text-indigo-600 shadow-sm"
+                    : "text-slate-500"
+                }`}
+              >
+                Answer
+              </button>
+            </div>
+
+            <button onClick={handlePrev}>
+              <ChevronLeft size={20} />
             </button>
 
-            {/* MARK SCHEME */}
-            {markSchemeUrl ? (
-              <a
-                href={markSchemeUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 bg-slate-50 hover:bg-emerald-600 text-slate-700 hover:text-white py-3 rounded-xl border border-slate-100 hover:border-emerald-600 transition-all duration-300 text-xs font-bold shadow-sm"
-              >
-                <i className="fas fa-check-circle"></i>
-                Mark Scheme
-              </a>
-            ) : (
-              <div className="flex items-center justify-center gap-2 bg-slate-50/50 text-slate-300 py-3 rounded-xl border border-slate-50 text-xs font-bold">
-                N/A
-              </div>
-            )}
+            <button onClick={handleNext}>
+              <ChevronRight size={20} />
+            </button>
 
-            {/* EXPLANATION */}
-            {explanationUrl ? (
-              <a
-                href={explanationUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 bg-slate-50 hover:bg-amber-500 text-slate-700 hover:text-white py-3 rounded-xl border border-slate-100 hover:border-amber-500 transition-all duration-300 text-xs font-bold shadow-sm"
-              >
-                <i className="fas fa-video"></i>
-                Solution
-              </a>
-            ) : (
-              <div className="flex items-center justify-center gap-2 bg-slate-50/50 text-slate-300 py-3 rounded-xl border border-slate-50 text-xs font-bold">
-                N/A
-              </div>
-            )}
-
-            {/* COMMENTS */}
-            {commentsUrl ? (
-              <a
-                href={commentsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 bg-slate-50 hover:bg-purple-600 text-slate-700 hover:text-white py-3 rounded-xl border border-slate-100 hover:border-purple-600 transition-all duration-300 text-xs font-bold shadow-sm"
-              >
-                <i className="fas fa-comment-dots"></i>
-                Comments
-              </a>
-            ) : (
-              <div className="flex items-center justify-center gap-2 bg-slate-50/50 text-slate-300 py-3 rounded-xl border border-slate-50 text-xs font-bold">
-                N/A
-              </div>
-            )}
           </div>
-        </div>
-      </div>
+        </header>
 
-      {/* ================= MODAL ================= */}
-      {showModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-10">
-          <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-md"
-            onClick={() => setShowModal(false)}
-          />
+        {/* Content Area */}
+        <div className="flex-grow overflow-y-auto p-8 custom-scrollbar relative">
 
-          <div
-            className="relative bg-white rounded-3xl w-full max-w-5xl max-h-[92vh] overflow-hidden shadow-2xl flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* HEADER */}
-            <div className="flex justify-between items-center px-6 py-4 border-b">
-              <h4 className="font-bold text-lg">{title}</h4>
-              <button
-                onClick={() => setShowModal(false)}
-                className="text-gray-400 hover:text-red-500"
+          <AnimatePresence mode="wait">
+            {selectedResource ? (
+              <motion.div
+                key={selectedResource._id + viewMode}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+                className="max-w-4xl mx-auto"
               >
-                ✕
-              </button>
-            </div>
 
-            {/* MULTI IMAGE AREA */}
-            <div className="flex-grow overflow-y-auto p-6 bg-slate-50">
-              {questionFiles.length === 0 ? (
-                <div className="text-center text-gray-400">
-                  No question files available
+                <div className="mb-6 flex items-center gap-2 text-xs">
+                  <span className="text-red-500 font-bold uppercase tracking-wider">
+                    Topic(s):
+                  </span>
+                  <span className="text-slate-500 italic font-medium">
+                    {selectedResource.topic?.name || topic}
+                  </span>
                 </div>
-              ) : (
-                questionFiles.map((file, index) => (
-                  <div key={index} className="mb-8">
-                    <div className="text-center text-xs text-gray-400 mb-2 uppercase tracking-wider">
-                      Page {index + 1}
+
+                <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+                  <div className="p-8 md:p-12">
+
+                    {viewMode === "question" ? (
+                      <div className="space-y-12">
+                      {selectedResource.questionPaper.map((file, idx) => (
+                        <div
+                          key={idx}
+                          className="min-h-screen flex flex-col items-center justify-start bg-white rounded-xl shadow-md p-6"
+                        >
+                          {/* Page Label */}
+                          <div className="text-sm font-semibold text-slate-400 mb-4">
+                            Page {idx + 1}
+                          </div>
+                    
+                          {/* Image */}
+                          <img
+                            src={file.url}
+                            alt={`Question ${idx + 1}`}
+                            className="max-w-full h-auto rounded-lg"
+                            referrerPolicy="no-referrer"
+                          />
+                        </div>
+                      ))}
                     </div>
-
-                    {file.fileType === "image" ? (
-                      <img
-                        src={file.url}
-                        alt={`Question page ${index + 1}`}
-                        className="w-full rounded-xl shadow-md"
-                        onError={() =>
-                          console.log("Failed to load:", file.url)
-                        }
-                      />
-                    ) : file.fileType === "pdf" ? (
-                      <iframe
-                        src={file.url}
-                        title={`PDF page ${index + 1}`}
-                        className="w-full h-[600px] rounded-xl border"
-                      />
                     ) : (
-                      <a
-                        href={file.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-indigo-600 underline"
-                      >
-                        Open File
-                      </a>
+                      <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
+                        <CheckCircle2 size={32} />
+                        <h3 className="text-xl font-bold">
+                          Mark Scheme Available
+                        </h3>
+                        <p className="text-slate-500 max-w-sm">
+                          The official mark scheme and expert explanations are ready for review.
+                        </p>
+                        <div className="flex gap-3 pt-4">
+                          <button className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all">
+                            View PDF
+                          </button>
+                          <button className="px-6 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-50 transition-all">
+                            Video Solution
+                          </button>
+                        </div>
+                      </div>
                     )}
+
                   </div>
-                ))
-              )}
-            </div>
+                </div>
 
-            {/* FOOTER */}
-            <div className="px-6 py-4 border-t flex justify-end gap-3">
-              <button
-                onClick={() => window.print()}
-                className="px-4 py-2 border rounded-lg text-sm"
-              >
-                Print
-              </button>
-              <button
-                onClick={() => setShowModal(false)}
-                className="px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm"
-              >
-                Close
-              </button>
-            </div>
-          </div>
+              </motion.div>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-4">
+                <FileText size={40} />
+                <p>Select a question from the sidebar</p>
+              </div>
+            )}
+          </AnimatePresence>
+
         </div>
-      )}
-    </>
-  );
-};
 
-export default ResourceCard;
+      </main>
+    </div>
+  );
+}
+
+/* ================= SMALL COMPONENTS ================= */
+
+function SidebarAction({ icon, label, active = false }) {
+  return (
+    <button
+      className={`flex flex-col items-center justify-center gap-1 p-2 rounded-lg ${
+        active
+          ? "bg-indigo-50 text-indigo-600 border border-indigo-100"
+          : "hover:bg-slate-50 text-slate-400"
+      }`}
+    >
+      {icon}
+      <span className="text-[9px] font-bold uppercase">{label}</span>
+    </button>
+  );
+}
+
+function ToolbarButton({ icon, label }) {
+  return (
+    <button className="flex flex-col items-center text-slate-400 hover:text-indigo-600">
+      <div className="p-1.5">{icon}</div>
+      <span className="text-[9px] font-bold uppercase">{label}</span>
+    </button>
+  );
+}

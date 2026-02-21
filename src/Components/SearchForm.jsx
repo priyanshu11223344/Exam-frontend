@@ -19,6 +19,7 @@ const SearchForm = () => {
   const { subjects = [] } = useSelector((state) => state.subjects);
   const { topics = [] } = useSelector((state) => state.topics);
   const filters = useSelector((state) => state.filters);
+  
 
   // Load boards on mount
   useEffect(() => {

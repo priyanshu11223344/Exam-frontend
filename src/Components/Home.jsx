@@ -7,7 +7,17 @@ import Navbar from './Navbar.jsx';
 const Home = () => {
   const { papers, loading } = useSelector(state => state.papers);
   const [hasSearched, setHasSearched] = useState(false);
-
+  const { boards = [] } = useSelector((state) => state.boards);
+  const { subjects = [] } = useSelector((state) => state.subjects);
+  const { topics = [] } = useSelector((state) => state.topics);
+  // const board_name=boards[0].name ||"";
+  // const subject_name=subjects[0].name||"";
+  // const topic_name=topics[0].name||"";
+  // console.log({
+  //   "board is":boards[0].name,
+  //   "subject is":subjects[0].name,
+  //   "topic is":topics[0].name
+  // })
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12">
     <Navbar/>
@@ -51,11 +61,13 @@ const Home = () => {
 
       ) : papers.length > 0 ? (
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {papers.map(res => (
-            <ResourceCard key={res._id} resource={res} />
-          ))}
-        </div>
+        // <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        //   {/* {papers.map(res => (
+        //     <ResourceCard key={res._id} resource={res} />
+        //   ))} */}
+        //    <ResourceCard  resource={papers} />
+        // </div>
+        <ResourceCard resource={papers} board={boards[0].name} subject={subjects[0].name} topic={topics[0].name}></ResourceCard>
 
       ) : hasSearched ? (
 
