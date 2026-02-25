@@ -5,9 +5,9 @@ const filterSlice = createSlice({
   initialState: {
     boardId: "",
     subjectId: "",
-    topicId: "",
-    year: "",
-    season: "",
+    topicIds: [],
+    years: [],
+    seasons: [],
     paperNumber: "",
     variant: "",
   },
@@ -16,14 +16,26 @@ const filterSlice = createSlice({
       const { name, value } = action.payload;
       state[name] = value;
     },
+
+    // 🔥 Reset everything after board change
     resetAfterBoard: (state, action) => {
       state.boardId = action.payload;
       state.subjectId = "";
-      state.topicId = "";
+      state.topicIds = [];
+      state.years = [];
+      state.seasons = [];
+      state.paperNumber = "";
+      state.variant = "";
     },
+
+    // 🔥 Reset topic + deeper filters after subject change
     resetAfterSubject: (state, action) => {
       state.subjectId = action.payload;
-      state.topicId = "";
+      state.topicIds = [];
+      state.years = [];
+      state.seasons = [];
+      state.paperNumber = "";
+      state.variant = "";
     },
   },
 });

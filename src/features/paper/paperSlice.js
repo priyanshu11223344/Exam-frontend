@@ -6,9 +6,27 @@ export const fetchPapers = createAsyncThunk(
   "papers/fetchPapers",
   async (filters, thunkAPI) => {
     try {
-      const res = await API.get("/papers/filter", {
-        params: filters,
-      });
+      const params = new URLSearchParams();
+
+      // 🔥 Multi-select fields
+      if (filters.topicIds?.length)
+        params.append("topicIds", filters.topicIds.join(","));
+
+      if (filters.years?.length)
+        params.append("years", filters.years.join(","));
+
+      if (filters.seasons?.length)
+        params.append("seasons", filters.seasons.join(","));
+
+      // 🔥 Single fields
+      if (filters.paperNumber)
+        params.append("paperNumber", filters.paperNumber);
+
+      if (filters.variant)
+        params.append("variant", filters.variant);
+
+      const res = await API.get(`/papers/filter?${params.toString()}`);
+
       return res.data.data;
     } catch (error) {
       return thunkAPI.rejectWithValue(error.response?.data);

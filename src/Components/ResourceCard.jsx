@@ -41,7 +41,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 export default function QuestionExplorer({resource,board,subject,topic}) {
   const resourceArray=resource
-  // console.log(resourceArray)
+   console.log(resourceArray)
   const [selectedId, setSelectedId] = useState(resourceArray[0]._id);
   // console.log("id is",resourceArray[0]._id)
   const [viewMode, setViewMode] = useState("question");
@@ -197,7 +197,7 @@ export default function QuestionExplorer({resource,board,subject,topic}) {
                     Topic(s):
                   </span>
                   <span className="text-slate-500 italic font-medium">
-                    {selectedResource.topic?.name || topic}
+                    {selectedResource.topicName || topic}
                   </span>
                 </div>
 
