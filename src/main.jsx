@@ -6,6 +6,7 @@ import { store } from './app/store'
 import { Provider } from 'react-redux'
 import { ClerkProvider } from '@clerk/react'
 const clerk_key=import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+console.log("key is",clerk_key);
 if(!clerk_key){
   throw new Error("Key was not found")
 }
