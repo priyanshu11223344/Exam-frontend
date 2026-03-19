@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo,useEffect } from "react";
 import {
   Search,
   Filter,
@@ -45,7 +45,7 @@ export default function QuestionExplorer({resource,board,subject,topic}) {
   const [selectedId, setSelectedId] = useState(resourceArray[0]._id);
   // console.log("id is",resourceArray[0]._id)
   const [viewMode, setViewMode] = useState("question");
-
+  const [showAnswer, setShowAnswer] = useState(false);
   const selectedResource = useMemo(() => {
     return resourceArray.find(r => r._id === selectedId);
   }, [selectedId]);
@@ -63,7 +63,9 @@ export default function QuestionExplorer({resource,board,subject,topic}) {
       setSelectedId(resourceArray[currentIndex - 1]._id);
     }
   };
-
+  useEffect(() => {
+    setShowAnswer(false);
+  }, [selectedId]);
   return (
     <div className="flex h-screen bg-[#F8FAFC] text-slate-900 font-sans overflow-hidden">
       
@@ -226,7 +228,7 @@ export default function QuestionExplorer({resource,board,subject,topic}) {
                         </div>
                       ))}
                     </div>
-                    ) : (
+                    ) : !showAnswer ? (
                       <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
                         <CheckCircle2 size={32} />
                         <h3 className="text-xl font-bold">
@@ -235,14 +237,68 @@ export default function QuestionExplorer({resource,board,subject,topic}) {
                         <p className="text-slate-500 max-w-sm">
                           The official mark scheme and expert explanations are ready for review.
                         </p>
+                    
                         <div className="flex gap-3 pt-4">
-                          <button className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all">
+                          <button
+                            onClick={() => setShowAnswer(true)}
+                            className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all"
+                          >
                             View PDF
                           </button>
+                    
                           <button className="px-6 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-50 transition-all">
                             Video Solution
                           </button>
                         </div>
+                      </div>
+                    ) : selectedResource.markScheme?.length > 0 ? (
+                      <div className="space-y-12">
+                        {/* Back Button */}
+                        <button
+                          onClick={() => setShowAnswer(false)}
+                          className="text-sm text-indigo-600 mb-4"
+                        >
+                          ← Back
+                        </button>
+                    
+                        {selectedResource.markScheme.map((file, idx) => (
+                          <div
+                            key={idx}
+                            className="min-h-screen flex flex-col items-center justify-start bg-white rounded-xl shadow-md p-6"
+                          >
+                            <div className="text-sm font-semibold text-slate-400 mb-4">
+                              Page {idx + 1}
+                            </div>
+                    
+                            {file.fileType === "image" ? (
+                              <img
+                                src={file.url}
+                                alt={`Answer ${idx + 1}`}
+                                className="max-w-full h-auto rounded-lg"
+                                referrerPolicy="no-referrer"
+                              />
+                            ) : file.fileType === "pdf" ? (
+                              <iframe
+                                src={file.url}
+                                title={`PDF ${idx + 1}`}
+                                className="w-full h-[800px] rounded-lg border"
+                              />
+                            ) : (
+                              <a
+                                href={file.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-indigo-600 underline"
+                              >
+                                Open File
+                              </a>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex justify-center py-20 text-slate-500">
+                        No Mark Scheme Available
                       </div>
                     )}
 

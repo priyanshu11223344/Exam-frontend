@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux';
 import SearchForm from './SearchForm.jsx';
 import ResourceCard from './ResourceCard.jsx';
 import Navbar from './Navbar.jsx';
+import Sidebar from './Sidebar.jsx';
 const Home = () => {
   const { papers, loading } = useSelector(state => state.papers);
   const [hasSearched, setHasSearched] = useState(false);
@@ -18,8 +19,13 @@ const Home = () => {
   //   "subject is":subjects[0].name,
   //   "topic is":topics[0].name
   // })
+  
   return (
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12">
+    <div className="flex">
+   <Sidebar/>
+
+  <div className="ml-64 w-full h-screen overflow-y-auto bg-blue-50 px-4 sm:px-6 lg:px-8">
+     
     <Navbar/>
     {/* Hero Header */}
     <div className="text-center mb-12">
@@ -37,9 +43,9 @@ const Home = () => {
     </div>
 
     {/* Results Section */}
-    <div className="space-y-8">
+    <div className="space-y-8 bg-blue-100 border-2 border-blue-800 rounded-2xl">
       <div className="flex items-center justify-between border-b border-slate-200 pb-4">
-        <h2 className="text-2xl font-bold text-slate-800">
+        <h2 className="text-2xl px-2  font-bold text-slate-800">
           {hasSearched ? 'Search Results' : 'Featured Resources'}
         </h2>
         <div className="flex items-center gap-4 text-sm text-slate-500">
@@ -68,6 +74,7 @@ const Home = () => {
         //    <ResourceCard  resource={papers} />
         // </div>
         <ResourceCard resource={papers} board={boards[0].name} subject={subjects[0].name} topic={topics[0].name}></ResourceCard>
+        
 
       ) : hasSearched ? (
 
@@ -89,10 +96,66 @@ const Home = () => {
 
       )}
     </div>
+    {/* Footer */}
+<footer className="mt-24 bg-slate-100 border-t border-slate-200">
+  <div className="max-w-7xl mx-auto px-6 py-12 grid md:grid-cols-3 gap-10 text-sm text-slate-700">
+    
+    <div>
+      <h3 className="font-semibold mb-2">Smarter Exam Revision with Topical Past Papers</h3>
+      <p>
+        Topical Past Papers help students focus their revision by instantly filtering
+        questions by topic — such as Algebra, Trigonometry, or Geometry. This targeted
+        approach makes study sessions more efficient and personalized.
+      </p>
+
+      <h3 className="font-semibold mt-6 mb-2">Personalized Study Tools</h3>
+      <p>
+        With one click, users can save questions, build custom lists, and return to them
+        anytime. This makes it easy to track progress and revisit weak areas for focused
+        improvement.
+      </p>
+    </div>
+
+    <div>
+      <h3 className="font-semibold mb-2">Flexible Filtering Options</h3>
+      <p>
+        Users can refine their practice by paper type, exam year, and season. Whether
+        preparing for mock exams or building skills gradually, the platform supports
+        both ordered and randomized question modes.
+      </p>
+
+      <h3 className="font-semibold mt-6 mb-2">Designed for Both Students and Teachers</h3>
+      <p>
+        While students use topical filtering to master specific concepts, teachers can
+        gather ready-made materials for quizzes, assignments, and class discussions —
+        saving time and boosting classroom impact.
+      </p>
+    </div>
+
+    <div>
+      <h3 className="font-semibold mb-2">Clean Display for Better Focus</h3>
+      <p>
+        All questions are displayed directly on the site with clear, distraction-free
+        formatting. Students can easily switch between official mark schemes and
+        AI-generated solutions for a deeper understanding.
+      </p>
+    </div>
+
+  </div>
+
+  <div className="border-t border-slate-200 py-4 px-6 flex justify-between items-center text-sm text-slate-600">
+    <span>2026 © Aurethia</span>
+    <div className="flex gap-6">
+      <a href="#" className="hover:text-indigo-600">T&C</a>
+      <a href="#" className="hover:text-indigo-600">Blogs</a>
+    </div>
+  </div>
+</footer>
     <button className="fixed bottom-8 right-8 bg-indigo-600 w-14 h-14 rounded-full text-white shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all">
         <i className="fas fa-question text-xl"></i>
       </button>
-  </main>
+     </div>
+  </div>
   );
 };
 
