@@ -46,7 +46,7 @@ const UploadExcel = () => {
 
     try {
       const res = await fetch(
-        "https://exam-backend-six.vercel.app/api/admin/upload-excel",
+        "https://exam-backend-render.onrender.com/api/admin/upload-excel",
         {
           method: "POST",
           body: formData,
