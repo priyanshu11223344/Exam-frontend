@@ -6,7 +6,7 @@ const RedirectPage = () => {
 
   if (!isLoaded) return <div>Loading...</div>;
 
-  const role = user?.publicMetadata?.role;
+  const role = user?.publicMetadata?.role || "user";
 
   // 🔥 IMPORTANT FIX
   if (!role) {
