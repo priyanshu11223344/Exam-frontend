@@ -41,8 +41,9 @@ const MultiDropdown = memo(
             !disabled &&
             setOpenDropdown(openDropdown === field ? null : field)
           }
-          className={`w-full border rounded-xl px-4 py-2 bg-white flex justify-between items-center cursor-pointer ${disabled ? "opacity-50 cursor-not-allowed" : ""
-            }`}
+          className={`w-full border rounded-xl px-4 py-2 bg-white flex justify-between items-center cursor-pointer ${
+            disabled ? "opacity-50 cursor-not-allowed" : ""
+          }`}
         >
           <span className="text-sm">
             {filters[field]?.length
@@ -102,12 +103,7 @@ const SearchForm = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-  
-    if (name === "paperNumber" || name === "variant") {
-      dispatch(setFilter({ name, value: value ? Number(value) : "" }));
-      return;
-    }
-  
+
     if (name === "boardId") {
       dispatch(clearSubjects());
       dispatch(clearTopics());
@@ -115,14 +111,14 @@ const SearchForm = () => {
       dispatch(resetAfterBoard(value));
       return;
     }
-  
+
     if (name === "subjectId") {
       dispatch(clearTopics());
       dispatch(fetchTopics(value));
       dispatch(resetAfterSubject(value));
       return;
     }
-  
+
     dispatch(setFilter({ name, value }));
   };
 
@@ -222,32 +218,6 @@ const SearchForm = () => {
           openDropdown={openDropdown}
           setOpenDropdown={setOpenDropdown}
         />
-        {/* {PAPER NUMBER} */}
-        {/* Paper Number */}
-        <div>
-          <label>Paper Number</label>
-          <input
-            type="number"
-            name="paperNumber"
-            value={filters.paperNumber || ""}
-            onChange={handleChange}
-            placeholder="Enter paper number (e.g. 1,2,3)"
-            className="w-full border rounded-xl px-4 py-2"
-          />
-        </div>
-        {/* {PAPER VARIANT} */}
-        {/* Paper Variant */}
-        <div>
-          <label>Paper Variant</label>
-          <input
-            type="number"
-            name="variant"
-            value={filters.variant || ""}
-            onChange={handleChange}
-            placeholder="Enter variant (e.g. 1,2,3)"
-            className="w-full border rounded-xl px-4 py-2"
-          />
-        </div>
 
         <div className="flex items-end">
           <button
