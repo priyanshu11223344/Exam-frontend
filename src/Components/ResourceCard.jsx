@@ -129,7 +129,7 @@ export default function QuestionExplorer({ resource, board, subject, topic }) {
           doc.setDrawColor(230, 230, 230);
           doc.line(margin, margin + 2, pageWidth - margin, margin + 2);
 
-          const imgData = await getBase64FromUrl(imgObj.url);
+          const imgData = await getBase64FromUrl(imgObj.cloudinaryUrl);
           if (imgData) {
             const props = doc.getImageProperties(imgData);
             const ratio = props.width / props.height;
@@ -163,7 +163,7 @@ export default function QuestionExplorer({ resource, board, subject, topic }) {
           doc.setDrawColor(200, 200, 200);
           doc.line(margin, margin + 2, pageWidth - margin, margin + 2);
 
-          const imgData = await getBase64FromUrl(imgObj.url);
+          const imgData = await getBase64FromUrl(imgObj.cloudinaryUrl);
           if (imgData) {
             const props = doc.getImageProperties(imgData);
             const ratio = props.width / props.height;
@@ -265,7 +265,7 @@ export default function QuestionExplorer({ resource, board, subject, topic }) {
                       : "text-slate-400"
                       }`}
                   >
-                    {subject}/{resource.paperNumber}_{resource.season}_{resource.year}_Q{resource.variant}
+                    {subject}/{resource.paperNumber}{resource.variant}_{resource.season}_{resource.year}_Q{resource.questionNumber}
                   </span>
                 </div>
               </button>
@@ -427,7 +427,7 @@ export default function QuestionExplorer({ resource, board, subject, topic }) {
 
                             {/* Image */}
                             <img
-                              src={file.url}
+                              src={file.cloudinaryUrl}
                               alt={`Question ${idx + 1}`}
                               className="max-w-full h-auto rounded-lg"
                               referrerPolicy="no-referrer"
@@ -477,15 +477,15 @@ export default function QuestionExplorer({ resource, board, subject, topic }) {
                               Page {idx + 1}
                             </div>
 
-                            {file.url?.toLowerCase().includes(".pdf") ? (
+                            {file.cloudinaryUrl?.toLowerCase().includes(".pdf") ? (
                               <iframe
-                                src={file.url}
+                                src={file.cloudinaryUrl}
                                 title={`PDF ${idx + 1}`}
                                 className="w-full h-[800px] rounded-lg border"
                               />
                             ) : (
                               <img
-                                src={file.url}
+                                src={file.cloudinaryUrl}
                                 alt={`Answer ${idx + 1}`}
                                 className="max-w-full h-auto rounded-lg"
                                 referrerPolicy="no-referrer"
