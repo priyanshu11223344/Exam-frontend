@@ -5,19 +5,15 @@ export const fetchPaperNames = createAsyncThunk(
   "paperName/fetchPaperNames",
   async (subjectId, { rejectWithValue }) => {
     try {
-      const res = await API.get(
-        `/paperName/${subjectId}`
-      );
- 
-      const data = await res.json();
+      const res = await API.get(`/paperName/${subjectId}`);
 
-      if (!res.ok) {
-        return rejectWithValue(data);
-      }
+      // ✅ AXIOS RESPONSE
+      return res.data.data; 
 
-      return data.data; // ✅ only return papers
     } catch (error) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(
+        error.response?.data || error.message
+      );
     }
   }
 );
