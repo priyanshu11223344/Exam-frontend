@@ -208,6 +208,10 @@ export default function QuestionExplorer({ resource, board, subject, topic }) {
   useEffect(() => {
     setShowAnswer(false);
   }, [selectedId]);
+  const getPaperNumber = (name) => {
+    const match = name?.match(/\d+/);
+    return match ? match[0] : "";
+  };
   return (
     <div className="flex h-screen bg-[#F8FAFC] text-slate-900 font-sans overflow-hidden">
 
@@ -265,7 +269,7 @@ export default function QuestionExplorer({ resource, board, subject, topic }) {
                       : "text-slate-400"
                       }`}
                   >
-                    {subject}/{resource.paperNumber}{resource.variant}_{resource.season}_{resource.year}_Q{resource.questionNumber}
+                    {subject}/{getPaperNumber(resource.paperName.name)}{resource.variant}_{resource.season}_{resource.year}_Q{resource.questionNumber}
                   </span>
                 </div>
               </button>

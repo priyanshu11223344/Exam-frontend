@@ -41,8 +41,9 @@ const MultiDropdown = memo(
             !disabled &&
             setOpenDropdown(openDropdown === field ? null : field)
           }
-          className={`w-full border rounded-xl px-4 py-2 bg-white flex justify-between items-center cursor-pointer ${disabled ? "opacity-50 cursor-not-allowed" : ""
-            }`}
+          className={`w-full border rounded-xl px-4 py-2 bg-white flex justify-between items-center cursor-pointer ${
+            disabled ? "opacity-50 cursor-not-allowed" : ""
+          }`}
         >
           <span className="text-sm">
             {filters[field]?.length
@@ -75,11 +76,13 @@ const MultiDropdown = memo(
     );
   }
 );
+
 import { useDispatch, useSelector } from "react-redux";
 import { fetchBoards } from "../features/board/boardSlice";
 import { fetchSubjects, clearSubjects } from "../features/subject/subjectSlice";
 import { fetchTopics, clearTopics } from "../features/topic/topicSlice";
 import { fetchPapers } from "../features/paper/paperSlice";
+import { fetchPaperNames } from "../features/paperName/paperNameSlice";
 import { years } from "../constants";
 import {
   setFilter,
@@ -93,6 +96,7 @@ const SearchForm = () => {
   const { boards = [] } = useSelector((state) => state.boards);
   const { subjects = [] } = useSelector((state) => state.subjects);
   const { topics = [] } = useSelector((state) => state.topics);
+  const { paperNames = [] } = useSelector((state) => state.paperName);
 
   const [openDropdown, setOpenDropdown] = useState(null);
 
@@ -100,14 +104,44 @@ const SearchForm = () => {
     dispatch(fetchBoards());
   }, [dispatch]);
 
+  // Paper Numbers
+  const paperNumbers = [
+    ...new Set(paperNames.map((p) => p.name)),
+  ];
+
+  const filteredPaperNames = paperNames.filter(
+    (p) => p.name === filters.paperNumber
+  );
+
+  const variants = [1, 2, 3];
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-  
-    if (name === "paperNumber" || name === "variant") {
-      dispatch(setFilter({ name, value: value ? Number(value) : "" }));
+
+    if (name === "paperNumber") {
+      dispatch(setFilter({ name: "paperNumber", value }));
+      dispatch(setFilter({ name: "variant", value: "" }));
+      dispatch(setFilter({ name: "paperNameId", value: "" }));
       return;
     }
-  
+
+    if (name === "variant") {
+      const selectedVariant = Number(value);
+
+      dispatch(setFilter({ name: "variant", value: selectedVariant }));
+
+      const matched = filteredPaperNames[0];
+
+      dispatch(
+        setFilter({
+          name: "paperNameId",
+          value: matched?._id || "",
+        })
+      );
+
+      return;
+    }
+
     if (name === "boardId") {
       dispatch(clearSubjects());
       dispatch(clearTopics());
@@ -115,14 +149,15 @@ const SearchForm = () => {
       dispatch(resetAfterBoard(value));
       return;
     }
-  
+
     if (name === "subjectId") {
       dispatch(clearTopics());
       dispatch(fetchTopics(value));
+      dispatch(fetchPaperNames(value));
       dispatch(resetAfterSubject(value));
       return;
     }
-  
+
     dispatch(setFilter({ name, value }));
   };
 
@@ -222,32 +257,37 @@ const SearchForm = () => {
           openDropdown={openDropdown}
           setOpenDropdown={setOpenDropdown}
         />
-        {/* {PAPER NUMBER} */}
-        {/* Paper Number */}
-        <div>
-          <label>Paper Number</label>
-          <input
-            type="number"
-            name="paperNumber"
-            value={filters.paperNumber || ""}
-            onChange={handleChange}
-            placeholder="Enter paper number (e.g. 1,2,3)"
-            className="w-full border rounded-xl px-4 py-2"
-          />
-        </div>
-        {/* {PAPER VARIANT} */}
-        {/* Paper Variant */}
-        <div>
-          <label>Paper Variant</label>
-          <input
-            type="number"
-            name="variant"
-            value={filters.variant || ""}
-            onChange={handleChange}
-            placeholder="Enter variant (e.g. 1,2,3)"
-            className="w-full border rounded-xl px-4 py-2"
-          />
-        </div>
+
+        {/* ✅ Paper Number MULTI */}
+        <MultiDropdown
+          label="Paper Number"
+          field="paperNumber"
+          disabled={!filters.subjectId}
+          options={paperNumbers.map((num) => ({
+            value: String(num),
+            label: num,
+          }))}
+          filters={filters}
+          dispatch={dispatch}
+          setFilter={setFilter}
+          openDropdown={openDropdown}
+          setOpenDropdown={setOpenDropdown}
+        />
+
+        {/* ✅ Variant MULTI */}
+        <MultiDropdown
+          label="Paper Variant"
+          field="variant"
+          options={variants.map((v) => ({
+            value: String(v),
+            label: `Variant ${v}`,
+          }))}
+          filters={filters}
+          dispatch={dispatch}
+          setFilter={setFilter}
+          openDropdown={openDropdown}
+          setOpenDropdown={setOpenDropdown}
+        />
 
         <div className="flex items-end">
           <button
