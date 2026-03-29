@@ -1,14 +1,14 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-
+import API from "../../api/axios";
 // 🔥 THUNK: Fetch Paper Names by Subject
 export const fetchPaperNames = createAsyncThunk(
   "paperName/fetchPaperNames",
   async (subjectId, { rejectWithValue }) => {
     try {
       const res = await fetch(
-        `http://localhost:5000/api/paperName/${subjectId}`
+        `/paperName/${subjectId}`
       );
-
+ 
       const data = await res.json();
 
       if (!res.ok) {
