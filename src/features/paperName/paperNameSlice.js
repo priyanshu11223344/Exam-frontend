@@ -5,7 +5,7 @@ export const fetchPaperNames = createAsyncThunk(
   "paperName/fetchPaperNames",
   async (subjectId, { rejectWithValue }) => {
     try {
-      const res = await fetch(
+      const res = await API.get(
         `/paperName/${subjectId}`
       );
  
