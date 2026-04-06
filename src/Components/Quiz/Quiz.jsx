@@ -5,7 +5,7 @@ import SearchForm from '../SearchForm.jsx'; // Reusing your existing search logi
 import QuizCard from './QuizCard.jsx';     // Assuming you'll create a specific card for Quizzes
 import Navbar from '../Navbar.jsx';
 import Sidebar from '../Sidebar.jsx';
-import QuizSearchForm from './QuizSearchForm.jsx';
+import QuizSearchForm from './QuizSearchFrom.jsx';
 import { setQuizData } from '../../features/quiz/quizSlice.js';
 import { fetchSubjects } from '../../features/subject/subjectSlice.js';
 const Quiz = () => {
