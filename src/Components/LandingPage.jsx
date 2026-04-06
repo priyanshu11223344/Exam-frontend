@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useUser, UserButton } from "@clerk/react";
-
+import logo from "../assets/Aurethia_logo.avif"
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -53,8 +53,8 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <div className="bg-indigo-600 p-2 rounded-xl">
-              <GraduationCap className="w-6 h-6 text-white" />
+            <div >
+            <img src={logo} alt="Aurethia Logo" className="w-15 h-15" />
             </div>
             <span className="text-xl font-bold font-display tracking-tight text-slate-900">Aurethia</span>
           </div>
@@ -390,7 +390,7 @@ export default function LandingPage() {
                 Ready to transform your <br className="hidden md:block" /> study experience?
               </h2>
               <p className="text-indigo-100 text-xl mb-12 max-w-2xl mx-auto">
-                Join thousands of students who are already using ExamPro to achieve their academic goals. Start your 7-day free trial today.
+                Join thousands of students who are already using Aurethia to achieve their academic goals. Start your 7-day free trial today.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <button className="w-full sm:w-auto bg-white text-indigo-600 hover:bg-indigo-50 px-10 py-5 rounded-2xl font-bold text-lg transition-all hover:-translate-y-1 active:scale-95 shadow-xl">
@@ -414,7 +414,7 @@ export default function LandingPage() {
                 <div className="bg-indigo-600 p-2 rounded-xl">
                   <GraduationCap className="w-6 h-6 text-white" />
                 </div>
-                <span className="text-xl font-bold font-display tracking-tight text-white">ExamPro</span>
+                <span className="text-xl font-bold font-display tracking-tight text-white">Aurethia</span>
               </div>
               <p className="text-slate-400 leading-relaxed">
                 Empowering students with the tools and confidence to excel in every exam they take.
@@ -453,7 +453,7 @@ export default function LandingPage() {
           
           <div className="pt-8 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-sm text-slate-500">
-              © 2026 ExamPro Inc. All rights reserved.
+              © 2026 Aurethia Inc. All rights reserved.
             </p>
             <div className="flex gap-6">
               <a href="#" className="text-slate-500 hover:text-white transition-colors">Twitter</a>

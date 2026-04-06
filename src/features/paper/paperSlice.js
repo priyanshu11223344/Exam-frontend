@@ -45,6 +45,9 @@ const paperSlice = createSlice({
     clearPapers: (state) => {
       state.papers = [];
     },
+    setPapers:(state,action)=>{
+      state.papers=action.payload
+    }
   },
   extraReducers: (builder) => {
     builder
@@ -54,6 +57,7 @@ const paperSlice = createSlice({
       .addCase(fetchPapers.fulfilled, (state, action) => {
         state.loading = false;
         state.papers = action.payload;
+        sessionStorage.setItem("papers",JSON.stringify(action.payload))
       })
       .addCase(fetchPapers.rejected, (state, action) => {
         state.loading = false;
@@ -62,5 +66,5 @@ const paperSlice = createSlice({
   },
 });
 
-export const { clearPapers } = paperSlice.actions;
+export const { clearPapers,setPapers } = paperSlice.actions;
 export default paperSlice.reducer;

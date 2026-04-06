@@ -78,24 +78,23 @@ const MultiDropdown = memo(
 );
 
 import { useDispatch, useSelector } from "react-redux";
-import { fetchBoards } from "../features/board/boardSlice";
-import { fetchSubjects, clearSubjects } from "../features/subject/subjectSlice";
-import { fetchTopics, clearTopics } from "../features/topic/topicSlice";
-import { fetchPapers } from "../features/paper/paperSlice";
-import { fetchPaperNames } from "../features/paperName/paperNameSlice";
-import { years } from "../constants";
+import { fetchBoards } from "../../features/board/boardSlice";
+import { fetchSubjects, clearSubjects } from "../../features/subject/subjectSlice";
+import { fetchTopics, clearTopics } from "../../features/topic/topicSlice";
+import { fetchQuizzes } from "../../features/quiz/quizSlice";
+import { fetchPaperNames } from "../../features/paperName/paperNameSlice";
+import { years } from "../../constants";
 import {
-  setFilter,
-  resetAfterBoard,
-  resetAfterSubject,
-} from "../features/filter/filterSlice";
+  setQuizFilter,
+  resetQuizAfterBoard,
+  resetQuizAfterSubject,
+} from "../../features/filter/quizFilterSlice";
 
-const SearchForm = () => {
+const QuizSearchForm = () => {
   const dispatch = useDispatch();
-  const filters = useSelector((state) => state.filters);
+  const filters = useSelector((state) => state.quizFilters);
   const { boards = [] } = useSelector((state) => state.boards);
   const { subjects = [] } = useSelector((state) => state.subjects);
-  const { topics = [] } = useSelector((state) => state.topics);
   const { paperNames = [] } = useSelector((state) => state.paperName);
 
   const [openDropdown, setOpenDropdown] = useState(null);
@@ -105,9 +104,15 @@ const SearchForm = () => {
   }, [dispatch]);
 
   // Paper Numbers
-  const paperNumbers = [
-    ...new Set(paperNames.map((p) => p.name)),
-  ];
+  const allowedPaperNumbers = ["1", "2", "1(core)", "2(extended)"];
+
+const paperNumbers = [
+  ...new Set(
+    paperNames
+      .map((p) => p.name?.trim())
+      .filter((name) => allowedPaperNumbers.includes(name))
+  ),
+];
 
   const filteredPaperNames = paperNames.filter(
     (p) => p.name === filters.paperNumber
@@ -117,54 +122,46 @@ const SearchForm = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-
-    if (name === "paperNumber") {
-      dispatch(setFilter({ name: "paperNumber", value }));
-      dispatch(setFilter({ name: "variant", value: "" }));
-      dispatch(setFilter({ name: "paperNameId", value: "" }));
-      return;
-    }
-
-    if (name === "variant") {
-      const selectedVariant = Number(value);
-
-      dispatch(setFilter({ name: "variant", value: selectedVariant }));
-
-      const matched = filteredPaperNames[0];
-
-      dispatch(
-        setFilter({
-          name: "paperNameId",
-          value: matched?._id || "",
-        })
-      );
-
-      return;
-    }
-
+  
     if (name === "boardId") {
       dispatch(clearSubjects());
       dispatch(clearTopics());
       dispatch(fetchSubjects(value));
-      dispatch(resetAfterBoard(value));
+  
+      // 🔥 IMPORTANT: STORE VALUE
+      dispatch(setQuizFilter({ name: "boardId", value }));
+  
       return;
     }
-
+  
     if (name === "subjectId") {
       dispatch(clearTopics());
       dispatch(fetchTopics(value));
       dispatch(fetchPaperNames(value));
-      dispatch(resetAfterSubject(value));
+  
+      // 🔥 IMPORTANT: STORE VALUE
+      dispatch(setQuizFilter({ name: "subjectId", value }));
+  
       return;
     }
-
-    dispatch(setFilter({ name, value }));
+  
+    if (name === "paperNumber") {
+      dispatch(setQuizFilter({ name: "paperNumber", value }));
+      dispatch(setQuizFilter({ name: "variant", value: [] }));
+      return;
+    }
+  
+    if (name === "variant") {
+      dispatch(setQuizFilter({ name: "variant", value: [Number(value)] }));
+      return;
+    }
+  
+    dispatch(setQuizFilter({ name, value }));
   };
 
   const handleSearch = () => {
-    
-
-    dispatch(fetchPapers(filters));
+    console.log("Filters before API:", filters); // DEBUG
+    dispatch(fetchQuizzes(filters));
   };
 
   return (
@@ -209,7 +206,7 @@ const SearchForm = () => {
         </div>
 
         {/* Topic */}
-        <MultiDropdown
+        {/* <MultiDropdown
           label="Topic"
           field="topicIds"
           
@@ -219,10 +216,10 @@ const SearchForm = () => {
           }))}
           filters={filters}
           dispatch={dispatch}
-          setFilter={setFilter}
+          setFilter={setQuizFilter}
           openDropdown={openDropdown}
           setOpenDropdown={setOpenDropdown}
-        />
+        /> */}
 
         {/* Year */}
         <MultiDropdown
@@ -234,7 +231,7 @@ const SearchForm = () => {
           }))}
           filters={filters}
           dispatch={dispatch}
-          setFilter={setFilter}
+          setFilter={setQuizFilter}
           openDropdown={openDropdown}
           setOpenDropdown={setOpenDropdown}
         />
@@ -250,7 +247,7 @@ const SearchForm = () => {
           ]}
           filters={filters}
           dispatch={dispatch}
-          setFilter={setFilter}
+          setFilter={setQuizFilter}
           openDropdown={openDropdown}
           setOpenDropdown={setOpenDropdown}
         />
@@ -266,7 +263,7 @@ const SearchForm = () => {
           }))}
           filters={filters}
           dispatch={dispatch}
-          setFilter={setFilter}
+          setFilter={setQuizFilter}
           openDropdown={openDropdown}
           setOpenDropdown={setOpenDropdown}
         />
@@ -281,7 +278,7 @@ const SearchForm = () => {
           }))}
           filters={filters}
           dispatch={dispatch}
-          setFilter={setFilter}
+          setFilter={setQuizFilter}
           openDropdown={openDropdown}
           setOpenDropdown={setOpenDropdown}
         />
@@ -299,4 +296,4 @@ const SearchForm = () => {
   );
 };
 
-export default SearchForm;
+export default QuizSearchForm;

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useClerk, useUser } from '@clerk/react';
-
+import logo from  "../assets/Aurethia_logo.avif"
 const Navbar = () => {
   const navigate = useNavigate();
   const { signOut } = useClerk();
@@ -19,9 +19,10 @@ const Navbar = () => {
           
           {/* Logo */}
           <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-white shadow-lg shadow-indigo-200">
+            {/* <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center text-white shadow-lg shadow-indigo-200">
               <i className="fas fa-graduation-cap text-xl"></i>
-            </div>
+            </div> */}
+              <img src={logo} alt="Aurethia Logo" className="w-15 h-15" />
             <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-blue-500">
               Aurethia
             </span>

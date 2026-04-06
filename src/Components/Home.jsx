@@ -1,16 +1,24 @@
 // Home.jsx
-import React, { useState } from 'react';
-import { useSelector } from 'react-redux';
+import React, { useState,useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import SearchForm from './SearchForm.jsx';
 import ResourceCard from './ResourceCard.jsx';
 import Navbar from './Navbar.jsx';
 import Sidebar from './Sidebar.jsx';
+import { setPapers } from '../features/paper/paperSlice.js';
+import { fetchSubjects } from "../features/subject/subjectSlice";
+import { fetchTopics } from "../features/topic/topicSlice";
+import { fetchPaperNames } from "../features/paperName/paperNameSlice";
+
 const Home = () => {
   const { papers, loading } = useSelector(state => state.papers);
   const [hasSearched, setHasSearched] = useState(false);
   const { boards = [] } = useSelector((state) => state.boards);
   const { subjects = [] } = useSelector((state) => state.subjects);
   const { topics = [] } = useSelector((state) => state.topics);
+  const filters = useSelector((state) => state.filters);
+  const selectedBoard = boards.find(b => b._id === filters.boardId);
+const selectedSubject = subjects.find(s => s._id === filters.subjectId);
   // const board_name=boards[0].name ||"";
   // const subject_name=subjects[0].name||"";
   // const topic_name=topics[0].name||"";
@@ -19,7 +27,25 @@ const Home = () => {
   //   "subject is":subjects[0].name,
   //   "topic is":topics[0].name
   // })
+  const dispatch=useDispatch();
+  useEffect(()=>{
+    const savedPapers=sessionStorage.getItem("papers");
+    if(savedPapers){
+      dispatch(setPapers(JSON.parse(savedPapers)));
+    }
+  },[])
+  useEffect(() => {
+    // 🔹 If board exists → fetch subjects
+    if (filters.boardId) {
+      dispatch(fetchSubjects(filters.boardId));
+    }
   
+    // 🔹 If subject exists → fetch topics + paperNames
+    if (filters.subjectId) {
+      dispatch(fetchTopics(filters.subjectId));
+      dispatch(fetchPaperNames(filters.subjectId));
+    }
+  }, [filters.boardId, filters.subjectId]);
   return (
     <div className="flex">
    <Sidebar/>
@@ -73,7 +99,12 @@ const Home = () => {
         //   ))} */}
         //    <ResourceCard  resource={papers} />
         // </div>
-        <ResourceCard resource={papers} board={boards[0].name} subject={subjects[0].name} topic={topics[0].name}></ResourceCard>
+        <ResourceCard 
+  resource={papers} 
+  board={selectedBoard?.name || ""} 
+  subject={selectedSubject?.name || ""} 
+  topic={topics[0]?.name || ""}
+/>
         
 
       ) : hasSearched ? (

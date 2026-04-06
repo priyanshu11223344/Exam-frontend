@@ -5,6 +5,8 @@ import topicReducer from "../features/topic/topicSlice";
 import paperReducer from "../features/paper/paperSlice";
 import filterReducer from "../features/filter/filterSlice";
 import paperNameReducer from "../features/paperName/paperNameSlice";
+import quizReducer from "../features/quiz/quizSlice";
+import quizFilterSlice from "../features/filter/quizFilterSlice";
 export const store = configureStore({
   reducer: {
     boards: boardReducer,
@@ -13,5 +15,7 @@ export const store = configureStore({
     papers: paperReducer,
     filters:filterReducer,
     paperName: paperNameReducer,
+    quizzes:quizReducer,
+    quizFilters:quizFilterSlice,
   },
 });

@@ -1,20 +1,44 @@
 import { createSlice } from "@reduxjs/toolkit";
 
+// ✅ ADD THIS (for loading filters)
+const loadFilters = () => {
+  try {
+    const saved = sessionStorage.getItem("filters");
+    return saved
+      ? JSON.parse(saved)
+      : {
+          boardId: "",
+          subjectId: "",
+          topicIds: [],
+          years: [],
+          seasons: [],
+          paperNumber: "",
+          variant: "",
+        };
+  } catch (error) {
+    return {
+      boardId: "",
+      subjectId: "",
+      topicIds: [],
+      years: [],
+      seasons: [],
+      paperNumber: "",
+      variant: "",
+    };
+  }
+};
+
 const filterSlice = createSlice({
   name: "filters",
-  initialState: {
-    boardId: "",
-    subjectId: "",
-    topicIds: [],
-    years: [],
-    seasons: [],
-    paperNumber: "",
-    variant: "",
-  },
+
+  // ✅ ONLY CHANGE HERE
+  initialState: loadFilters(),
+
   reducers: {
     setFilter: (state, action) => {
       const { name, value } = action.payload;
       state[name] = value;
+      sessionStorage.setItem("filters", JSON.stringify(state));
     },
 
     // 🔥 Reset everything after board change
@@ -26,6 +50,7 @@ const filterSlice = createSlice({
       state.seasons = [];
       state.paperNumber = "";
       state.variant = "";
+      sessionStorage.setItem("filters", JSON.stringify(state));
     },
 
     // 🔥 Reset topic + deeper filters after subject change
@@ -36,6 +61,7 @@ const filterSlice = createSlice({
       state.seasons = [];
       state.paperNumber = "";
       state.variant = "";
+      sessionStorage.setItem("filters", JSON.stringify(state));
     },
   },
 });
