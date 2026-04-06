@@ -12,6 +12,7 @@ import ProtectedRoute from './Components/ProtectedRoute.jsx';
 import RedirectPage from './Components/Redirect.jsx';
 import AdminProtected from "./Components/AdminProtected.jsx"
 import UserDashboard from './Components/UserDashboard.jsx';
+import Quiz from './Components/Quiz/Quiz.jsx';
 const App = () => {
 
   // 🔥 Get real papers from Redux
@@ -51,6 +52,7 @@ const App = () => {
             <SignUp forceRedirectUrl="/redirect" />
           }
         />
+        <Route path="/quiz" element={<Quiz/>}></Route>
         <Route path="/admin" element={<AdminProtected><Admin /></AdminProtected>}></Route>
         <Route path="/UserDashboard" element={<UserDashboard/>}></Route>
       </Routes>
