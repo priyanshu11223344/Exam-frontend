@@ -47,6 +47,11 @@ const PricingPage = () => {
       const { data } = await API.post("/payment/create-order", {
         planId: currentPlanId,
         duration: currentDuration,
+        {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
       });
   
       const options = {
@@ -60,21 +65,27 @@ const PricingPage = () => {
         handler: async function (response) {
           try {
             // 🔥 2. VERIFY PAYMENT (FIXED)
-            await API.post("/payment/verify-payment", {
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-  
-              // ✅ CRITICAL FIX (this was missing)
-              planId: currentPlanId,
-              durationLabel: currentDuration,
-            });
+            await API.post(
+                "/payment/verify-payment",
+                {
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                  planId: currentPlanId,
+                  durationLabel: currentDuration,
+                },
+                {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                }
+              );
   
             toast.dismiss(loadingToast);
             toast.success("Payment successful 🎉");
   
             // 🔥 3. Refresh user
-            await dispatch(fetchUser());
+            await dispatch(fetchUser({ getToken }));
   
           } catch (err) {
             console.error(err);
