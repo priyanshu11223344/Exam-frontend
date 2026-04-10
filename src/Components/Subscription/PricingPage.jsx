@@ -44,15 +44,18 @@ const PricingPage = () => {
       const currentDuration = durationLabel;
       const token = await getToken();
       // 🔥 1. Create order
-      const { data } = await API.post("/payment/create-order", {
-        planId: currentPlanId,
-        duration: currentDuration,
+      const { data } = await API.post(
+        "/payment/create-order",
         {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-      });
+          planId: currentPlanId,
+          duration: currentDuration,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
   
       const options = {
         key: data.key,
