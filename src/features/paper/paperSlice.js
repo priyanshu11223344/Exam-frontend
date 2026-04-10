@@ -24,8 +24,19 @@ export const fetchPapers = createAsyncThunk(
 
       if (filters.variant)
         params.append("variant", filters.variant);
-
-      const res = await API.get(`/papers/filter?${params.toString()}`);
+        const token = await getToken();
+        if (!token) {
+          throw new Error("User not authenticated");
+        }
+        const res = await API.get(
+          `/papers/filter?${params.toString()}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+  
 
       return res.data.data;
     } catch (error) {

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, memo } from "react";
-
+import {useAuth} from "@clerk/react"
 const MultiDropdown = memo(
   ({ label, field, options, disabled, filters, dispatch, setFilter, openDropdown, setOpenDropdown }) => {
     const wrapperRef = useRef(null);
@@ -107,7 +107,7 @@ const SearchForm = () => {
   const { subjects = [] } = useSelector((state) => state.subjects);
   const { topics = [] } = useSelector((state) => state.topics);
   const { paperNames = [] } = useSelector((state) => state.paperName);
-
+  const { getToken } = useAuth();
   // ✅ ADDED (ONLY THIS LINE)
   const { features } = useSelector((state) => state.user);
 
@@ -174,7 +174,7 @@ const SearchForm = () => {
   };
 
   const handleSearch = () => {
-    dispatch(fetchPapers(filters));
+    dispatch(fetchPapers({ filters, getToken }));
   };
 
   return (
