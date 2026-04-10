@@ -87,14 +87,12 @@ const hasPDF = features.includes("pdf");
     });
   };
 
-  const handlePDFSelect = async (resource) => {
-    try {
-      await API.get("/feature/pdf");
-    } catch {
+  const handlePDFSelect = (resource) => {
+    if (!hasPDF) {
       toast.error("Upgrade your plan to use PDF feature");
       return;
     }
-
+  
     if (selectedForPDF.includes(resource)) {
       setSelectedForPDF(selectedForPDF.filter(r => r !== resource));
     } else {
