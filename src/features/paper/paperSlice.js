@@ -4,7 +4,7 @@ import API from "../../api/axios";
 // FETCH PAPERS WITH FILTER
 export const fetchPapers = createAsyncThunk(
   "papers/fetchPapers",
-  async (filters, thunkAPI) => {
+  async ({ filters, token }, thunkAPI) => {
     try {
       const params = new URLSearchParams();
 
@@ -24,19 +24,15 @@ export const fetchPapers = createAsyncThunk(
 
       if (filters.variant)
         params.append("variant", filters.variant);
-        const token = await getToken();
-        if (!token) {
-          throw new Error("User not authenticated");
+
+      const res = await API.get(
+        `/papers/filter?${params.toString()}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`, // ✅ correct
+          },
         }
-        const res = await API.get(
-          `/papers/filter?${params.toString()}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-  
+      );
 
       return res.data.data;
     } catch (error) {

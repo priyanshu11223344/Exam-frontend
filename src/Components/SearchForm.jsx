@@ -173,8 +173,13 @@ const SearchForm = () => {
     dispatch(setFilter({ name, value }));
   };
 
-  const handleSearch = () => {
-    dispatch(fetchPapers({ filters, getToken }));
+  const handleSearch = async() => {
+    const token = await getToken();   // ✅ CALL IT HERE
+
+  dispatch(fetchPapers({ 
+    filters, 
+    token 
+  }));
   };
 
   return (
