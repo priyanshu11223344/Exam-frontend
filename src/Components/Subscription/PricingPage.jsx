@@ -9,12 +9,14 @@ import { fetchUser } from '../../features/user/userSlice';
 import axios from "axios";                  // ✅ ADDED
 import toast from "react-hot-toast";        // ✅ ADDED
 import API from '../../api/axios';
+import {useAuth} from "@clerk/react"
 const PricingPage = () => {
 
   const dispatch = useDispatch();
   const { plans, loading } = useSelector((state) => state.plans);
 
   const [selectedPlan, setSelectedPlan] = useState(null);
+  const { getToken } = useAuth();
 
   // 🔥 Fetch plans from backend
   useEffect(() => {
@@ -40,7 +42,7 @@ const PricingPage = () => {
       // ✅ Fix closure issue
       const currentPlanId = planId;
       const currentDuration = durationLabel;
-  
+      const token = await getToken();
       // 🔥 1. Create order
       const { data } = await API.post("/payment/create-order", {
         planId: currentPlanId,
