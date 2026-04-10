@@ -32,7 +32,7 @@ const Navbar = () => {
           <div className="hidden md:flex items-center space-x-6 text-sm font-medium text-slate-600">
             <a href="#" className="hover:text-indigo-600 transition-colors">Resources</a>
             <a href="#" className="hover:text-indigo-600 transition-colors">Syllabus</a>
-            <a href="#" className="hover:text-indigo-600 transition-colors">Revision Tools</a>
+            <a href="/pricingPage" className="hover:text-indigo-600 transition-colors">Pricing</a>
 
             {/* Dashboard */}
             <button

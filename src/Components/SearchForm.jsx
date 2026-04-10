@@ -55,21 +55,31 @@ const MultiDropdown = memo(
 
         {openDropdown === field && (
           <div className="absolute z-30 mt-2 w-full bg-white border rounded-xl shadow-lg max-h-60 overflow-y-auto p-3 space-y-2">
+            
+            {/* ✅ ONLY MODIFIED PART */}
             {options.map((opt) => (
               <label
                 key={opt.value}
-                className="flex items-center gap-2 cursor-pointer"
+                className={`flex items-center gap-2 ${
+                  opt.disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+                }`}
               >
                 <input
                   type="checkbox"
+                  disabled={opt.disabled}
                   checked={(filters[field] || []).includes(
                     String(opt.value)
                   )}
-                  onChange={() => toggleMultiSelect(opt.value)}
+                  onChange={() => {
+                    if (!opt.disabled) {
+                      toggleMultiSelect(opt.value);
+                    }
+                  }}
                 />
                 <span className="text-sm">{opt.label}</span>
               </label>
             ))}
+
           </div>
         )}
       </div>
@@ -98,13 +108,15 @@ const SearchForm = () => {
   const { topics = [] } = useSelector((state) => state.topics);
   const { paperNames = [] } = useSelector((state) => state.paperName);
 
+  // ✅ ADDED (ONLY THIS LINE)
+  const { features } = useSelector((state) => state.user);
+
   const [openDropdown, setOpenDropdown] = useState(null);
 
   useEffect(() => {
     dispatch(fetchBoards());
   }, [dispatch]);
 
-  // Paper Numbers
   const paperNumbers = [
     ...new Set(paperNames.map((p) => p.name)),
   ];
@@ -162,8 +174,6 @@ const SearchForm = () => {
   };
 
   const handleSearch = () => {
-    
-
     dispatch(fetchPapers(filters));
   };
 
@@ -212,7 +222,6 @@ const SearchForm = () => {
         <MultiDropdown
           label="Topic"
           field="topicIds"
-          
           options={topics.map((t) => ({
             value: String(t._id),
             label: t.name,
@@ -228,10 +237,19 @@ const SearchForm = () => {
         <MultiDropdown
           label="Year"
           field="years"
-          options={years.map((y) => ({
-            value: String(y),
-            label: y,
-          }))}
+
+          // {/* ✅ ONLY MODIFIED PART */}
+          options={years.map((y) => {
+            const isLocked =
+              !features?.includes("years_access") && y > 2019;
+
+            return {
+              value: String(y),
+              label: isLocked ? `🔒 ${y}` : y,
+              disabled: isLocked,
+            };
+          })}
+
           filters={filters}
           dispatch={dispatch}
           setFilter={setFilter}
@@ -255,7 +273,7 @@ const SearchForm = () => {
           setOpenDropdown={setOpenDropdown}
         />
 
-        {/* ✅ Paper Number MULTI */}
+        {/* Paper Number */}
         <MultiDropdown
           label="Paper Number"
           field="paperNumber"
@@ -271,7 +289,7 @@ const SearchForm = () => {
           setOpenDropdown={setOpenDropdown}
         />
 
-        {/* ✅ Variant MULTI */}
+        {/* Variant */}
         <MultiDropdown
           label="Paper Variant"
           field="variant"

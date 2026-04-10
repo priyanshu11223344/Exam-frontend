@@ -18,6 +18,9 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import jsPDF from "jspdf";
+import { useSelector } from "react-redux";
+import toast from "react-hot-toast";
+import API from "../api/axios";
 /* ================= MOCK DATA ================= */
 
 // const resourceArray = Array.from({ length: 20 }).map((_, i) => ({
@@ -41,6 +44,8 @@ import jsPDF from "jspdf";
 /* ================= MAIN COMPONENT ================= */
 
 export default function QuestionExplorer({ resource, board, subject, topic }) {
+  const { features } = useSelector((state) => state.user);
+const hasPDF = features.includes("pdf");
   const resourceArray = resource
   console.log(resourceArray)
   const [selectedId, setSelectedId] = useState(resourceArray[0]._id);
@@ -82,17 +87,23 @@ export default function QuestionExplorer({ resource, board, subject, topic }) {
     });
   };
 
-  const handlePDFSelect = (resource) => {
+  const handlePDFSelect = async (resource) => {
+    try {
+      await API.get("/feature/pdf");
+    } catch {
+      toast.error("Upgrade your plan to use PDF feature");
+      return;
+    }
+
     if (selectedForPDF.includes(resource)) {
       setSelectedForPDF(selectedForPDF.filter(r => r !== resource));
     } else {
       setSelectedForPDF([...selectedForPDF, resource]);
     }
   };
-
   const downloadPDF = async () => {
-    if (selectedForPDF.length === 0) {
-      alert("Select at least one question");
+    if (!hasPDF) {
+      toast.error("Upgrade your plan to download PDF");
       return;
     }
 
@@ -186,7 +197,7 @@ export default function QuestionExplorer({ resource, board, subject, topic }) {
       setSelectedForPDF([]);
     } catch (err) {
       console.error("PDF Generation Error:", err);
-      alert("Error generating PDF. Please try again.");
+      toast.error("Error generating PDF. Please try again.");
     } finally {
       setPdfLoading(false);
     }
@@ -300,6 +311,10 @@ export default function QuestionExplorer({ resource, board, subject, topic }) {
             <div className="flex items-center gap-1.5 bg-slate-50 p-1 rounded-xl border border-slate-100">
               <button
                 onClick={() => {
+                  if (!hasPDF) {
+                    toast.error("Upgrade your plan to use PDF feature");
+                    return;
+                  }
                   setPdfMode(!pdfMode);
                   setSelectedForPDF([]);
                 }}
@@ -358,7 +373,13 @@ export default function QuestionExplorer({ resource, board, subject, topic }) {
               <motion.button
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
-                onClick={downloadPDF}
+                onClick={() => {
+                  if (!hasPDF) {
+                    toast.error("Upgrade your plan to download PDF");
+                    return;
+                  }
+                  downloadPDF();
+                }}
                 disabled={pdfLoading}
                 className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 disabled:bg-slate-300"
               >
@@ -451,7 +472,13 @@ export default function QuestionExplorer({ resource, board, subject, topic }) {
 
                         <div className="flex gap-3 pt-4">
                           <button
-                            onClick={() => setShowAnswer(true)}
+                            onClick={() => {
+                              if (!hasPDF) {
+                                toast.error("Upgrade your plan to view answers");
+                                return;
+                              }
+                              setShowAnswer(true);
+                            }}
                             className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all"
                           >
                             View PDF

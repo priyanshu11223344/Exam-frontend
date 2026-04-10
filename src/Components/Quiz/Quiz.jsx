@@ -31,6 +31,18 @@ const Quiz = () => {
   const selectedSubject=subjects.find(
     (s)=>s._id===filters.subjectId
   );
+  useEffect(() => {
+    const checkAccess = async () => {
+      try {
+        await API.get("/feature/mcq");
+      } catch {
+        toast.error("Upgrade required");
+        navigate("/pricingPage");
+      }
+    };
+  
+    checkAccess();
+  }, []);
   return (
     <div className="flex">
       <Sidebar />
