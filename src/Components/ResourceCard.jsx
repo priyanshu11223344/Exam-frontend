@@ -44,8 +44,8 @@ import API from "../api/axios";
 /* ================= MAIN COMPONENT ================= */
 
 export default function QuestionExplorer({ resource, board, subject, topic }) {
-  const { features } = useSelector((state) => state.user);
-const hasPDF = features.includes("pdf");
+  const { features, role } = useSelector((state) => state.user);
+  const hasPDF = role === "admin" || features.includes("pdf");
   const resourceArray = resource
   console.log(resourceArray)
   const [selectedId, setSelectedId] = useState(resourceArray[0]._id);

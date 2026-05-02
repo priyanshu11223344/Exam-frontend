@@ -29,14 +29,13 @@ export const fetchQuizzes = createAsyncThunk(
 
       // ✅ CONVERT TO BACKEND FORMAT
       const params = {
-        board: boardObj.name,              // 🔥 NAME
-        subject: subjectObj.name,          // 🔥 NAME
-        year: filters.years[0],
-        season: filters.seasons[0],
-        paperName: filters.paperNumber[0],
-        variant: filters.variant[0],
+        board: boardObj.name,
+        subject: subjectObj.name,
+        year: filters.years.join(","),        // ✅ send all
+        season: filters.seasons.join(","),    // ✅ send all
+        paperName: filters.paperNumber.join(","), // optional
+        variant: filters.variant.join(","),   // optional
       };
-
       console.log("🔥 FINAL PARAMS:", params);
 
       const res = await API.get("/quiz", { params });

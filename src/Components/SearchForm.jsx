@@ -108,9 +108,10 @@ const SearchForm = () => {
   const { topics = [] } = useSelector((state) => state.topics);
   const { paperNames = [] } = useSelector((state) => state.paperName);
   const { getToken } = useAuth();
+ 
   // ✅ ADDED (ONLY THIS LINE)
-  const { features } = useSelector((state) => state.user);
-
+  const { features, role } = useSelector((state) => state.user);
+  console.log("USER STATE:", { role, features });
   const [openDropdown, setOpenDropdown] = useState(null);
 
   useEffect(() => {
@@ -246,7 +247,7 @@ const SearchForm = () => {
           // {/* ✅ ONLY MODIFIED PART */}
           options={years.map((y) => {
             const isLocked =
-              !features?.includes("years_access") && y > 2019;
+            role !== "admin" && !features?.includes("years_access") && y > 2019;
 
             return {
               value: String(y),

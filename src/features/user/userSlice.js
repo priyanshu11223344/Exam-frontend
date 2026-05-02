@@ -48,11 +48,12 @@ export const updateUser = createAsyncThunk(
 const userSlice = createSlice({
   name: "user",
   initialState: {
-    user:null,
+    user: null,
+    role: "user",              // ✅ ADD THIS
     planName: "Free",
     features: ["topical"],
     loading: false,
-    error:null,
+    error: null,
   },
   reducers: {},
   extraReducers: (builder) => {
@@ -63,9 +64,12 @@ const userSlice = createSlice({
       })
       .addCase(fetchUser.fulfilled, (state, action) => {
         state.loading = false;
-        state.user=action.payload;
+        state.user = action.payload;
+      
+        state.role = action.payload?.role || "user";   // ✅ ADD THIS
+      
         state.planName = action.payload?.planName || "Free";
-state.features = action.payload?.features || ["topical"];
+        state.features = action.payload?.features || ["topical"];
       })
       .addCase(fetchUser.rejected, (state,action) => {
         state.loading = false;

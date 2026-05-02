@@ -4,9 +4,10 @@ import toast from "react-hot-toast";
 import { useEffect } from "react";
 
 const FeatureProtectedRoute = ({ children, feature }) => {
-  const { features = [] } = useSelector((state) => state.user);
+  const { features = [], role = "user" } = useSelector((state) => state.user);
 
-  const hasAccess = features.includes(feature);
+  // ✅ ADMIN BYPASS + feature check
+  const hasAccess = role === "admin" || features.includes(feature);
 
   useEffect(() => {
     if (!hasAccess) {
