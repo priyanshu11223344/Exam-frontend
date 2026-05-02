@@ -8,6 +8,10 @@ const Navbar = () => {
   const { isSignedIn, user } = useUser();
 
   const handleLogout = async () => {
+    sessionStorage.removeItem("filters");
+    sessionStorage.removeItem("quizFilters");
+    sessionStorage.removeItem("papers");
+    sessionStorage.removeItem("quizData");
     await signOut();
     navigate("/"); // redirect after logout
   };
