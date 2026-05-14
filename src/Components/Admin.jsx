@@ -62,7 +62,7 @@ const UploadExcel = () => {
     formData.append("file", file);
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:5000/api/admin/upload-excel", {
+      const res = await fetch( "https://exam-backend-render.onrender.com/api/admin/upload-excel", {
         method: "POST",
         body: formData,
       });
