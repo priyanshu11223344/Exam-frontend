@@ -13,7 +13,17 @@ export const fetchSubjects = createAsyncThunk(
     }
   }
 );
-
+export const createSubject=createAsyncThunk(
+  "subjects/createSubjects",
+  async(subjectData,thunkAPI)=>{
+    try {
+      const res=await API.post("/subjects/",subjectData);
+      return res.data.data;
+    } catch (error) {
+      return thunkAPI.rejectWithValue(error.response?.data);
+    }
+  }
+)
 const subjectSlice = createSlice({
   name: "subjects",
   initialState: {
@@ -38,7 +48,18 @@ const subjectSlice = createSlice({
       .addCase(fetchSubjects.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
-      });
+      })
+      .addCase(createSubject.pending,(state)=>{
+        state.loading=true;
+      })
+      .addCase(createSubject.fulfilled,(state,action)=>{
+        state.loading=true;
+        state.subjects.push(action.payload);
+      })
+      .addCase(createSubject.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
   },
 });
 
