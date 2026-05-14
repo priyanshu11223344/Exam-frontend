@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from "react";
 import { Plus, Trash2, Upload, Box, Book, Layers, FileSpreadsheet, LayoutList } from 'lucide-react';
 import { useDispatch, useSelector } from "react-redux";
 import { fetchBoards, createBoard } from "../features/board/boardSlice";
-import { fetchSubjects, clearSubjects,createSubject } from "../features/subject/subjectSlice";
-import { fetchTopics, clearTopics ,createTopic} from "../features/topic/topicSlice";
+import { fetchSubjects, clearSubjects, createSubject } from "../features/subject/subjectSlice";
+import { fetchTopics, clearTopics, createTopic } from "../features/topic/topicSlice";
+import { uploadQuestions } from "../features/question/questionSlice";
 const UploadExcel = () => {
   const [activeTab, setActiveTab] = useState("manual"); // "manual" or "excel"
 
@@ -15,7 +16,27 @@ const UploadExcel = () => {
 
   // --- MANUAL FORM STATE ---
   const [rows, setRows] = useState([
-    { id: Date.now(), board: '', subject: '', topic: '', year: '', season: '', paperName: '', variant: '1', questionNumber: '', questionPaper: '', markScheme: '', correctAnswer: '', explanation: '', specialComment: '' }
+    {
+      id: Date.now(),
+  
+      board: "",
+      subject: "",
+      topic: "",
+  
+      subjects: [],
+      topics: [],
+  
+      year: "",
+      season: "",
+      paperName: "",
+      variant: "1",
+      questionNumber: "",
+      questionPaper: "",
+      markScheme: "",
+      correctAnswer: "",
+      explanation: "",
+      specialComment: "",
+    },
   ]);
   const dispatch = useDispatch();
   useEffect(() => {
@@ -62,7 +83,7 @@ const UploadExcel = () => {
     formData.append("file", file);
     setLoading(true);
     try {
-      const res = await fetch( "https://exam-backend-render.onrender.com/api/admin/upload-excel", {
+      const res = await fetch("https://exam-backend-render.onrender.com/api/admin/upload-excel", {
         method: "POST",
         body: formData,
       });
@@ -82,46 +103,119 @@ const UploadExcel = () => {
 
   // --- MANUAL LOGIC (Row Handlers) ---
   const addRow = () => {
-    setRows([...rows, { ...rows[0], id: Date.now(), questionNumber: '', questionPaper: '', markScheme: '', correctAnswer: '', explanation: '', specialComment: '' }]);
+
+    const lastRow = rows[rows.length - 1];
+  
+    setRows([
+      ...rows,
+      {
+        id: Date.now(),
+  
+        // COPY COMMON FIELDS
+        board: lastRow.board,
+        subject: lastRow.subject,
+        topic: lastRow.topic,
+  
+        subjects: [...lastRow.subjects],
+        topics: [...lastRow.topics],
+  
+        year: lastRow.year,
+        season: lastRow.season,
+        paperName: lastRow.paperName,
+        variant: lastRow.variant,
+  
+        // RESET QUESTION DATA
+        questionNumber: "",
+        questionPaper: "",
+        markScheme: "",
+        correctAnswer: "",
+        explanation: "",
+        specialComment: "",
+      },
+    ]);
   };
   const deleteRow = (id) => rows.length > 1 && setRows(rows.filter(r => r.id !== id));
   const updateRow = async (id, field, value) => {
 
-    // ✅ update current field
-    setRows((prevRows) =>
-      prevRows.map((row) => {
-
-        if (row.id !== id) return row;
-
-        // ✅ BOARD CHANGED
-        if (field === "board") {
-          dispatch(clearSubjects());
-          dispatch(clearTopics());
-
-          dispatch(fetchSubjects(value));
-
+    // BOARD CHANGED
+    if (field === "board") {
+  
+      const selectedBoard = boards.find(
+        (b) => b.name === value
+      );
+  
+      let fetchedSubjects = [];
+  
+      if (selectedBoard) {
+  
+        fetchedSubjects = await dispatch(
+          fetchSubjects(selectedBoard._id)
+        ).unwrap();
+      }
+  
+      setRows((prevRows) =>
+        prevRows.map((row) => {
+  
+          if (row.id !== id) return row;
+  
           return {
             ...row,
             board: value,
             subject: "",
             topic: "",
+            subjects: fetchedSubjects,
+            topics: [],
           };
-        }
-
-        // ✅ SUBJECT CHANGED
-        if (field === "subject") {
-          dispatch(clearTopics());
-
-          dispatch(fetchTopics(value));
-
+        })
+      );
+  
+      return;
+    }
+  
+    // SUBJECT CHANGED
+    if (field === "subject") {
+  
+      const currentRow = rows.find(
+        (r) => r.id === id
+      );
+  
+      const selectedSubject =
+        currentRow.subjects.find(
+          (s) => s.name === value
+        );
+  
+      let fetchedTopics = [];
+  
+      if (selectedSubject) {
+  
+        fetchedTopics = await dispatch(
+          fetchTopics(selectedSubject._id)
+        ).unwrap();
+      }
+  
+      setRows((prevRows) =>
+        prevRows.map((row) => {
+  
+          if (row.id !== id) return row;
+  
           return {
             ...row,
             subject: value,
             topic: "",
+            topics: fetchedTopics,
           };
-        }
-
-        // ✅ NORMAL FIELD
+        })
+      );
+  
+      return;
+    }
+  
+    // NORMAL FIELD
+    setRows((prevRows) =>
+      prevRows.map((row) => {
+  
+        if (row.id !== id) return row;
+  
         return {
           ...row,
           [field]: value,
@@ -129,9 +223,74 @@ const UploadExcel = () => {
       })
     );
   };
-  const handleManualUpload = () => {
-    console.log("Manual Data Payload:", rows);
-    alert("Manual data payload logged to console!");
+  const handleManualUpload = async () => {
+
+    try {
+  
+      // REMOVE FRONTEND ID
+      const cleanedRows = rows.map(({ id, ...rest }) => rest);
+  
+      // VALIDATION
+      for (const row of cleanedRows) {
+  
+        if (
+          !row.board ||
+          !row.subject ||
+          !row.topic ||
+          !row.year ||
+          !row.paperName ||
+          !row.questionNumber ||
+          !row.questionPaper
+        ) {
+          return alert("Please fill all required fields");
+        }
+      }
+  
+      // API CALL
+      const result = await dispatch(
+        uploadQuestions(cleanedRows)
+      ).unwrap();
+  
+      alert(
+        result?.message ||
+        "Questions Uploaded Successfully"
+      );
+  
+      // RESET FORM
+      setRows([
+        {
+          id: Date.now(),
+      
+          board: "",
+          subject: "",
+          topic: "",
+      
+          subjects: [],
+          topics: [],
+      
+          year: "",
+          season: "",
+          paperName: "",
+          variant: "1",
+          questionNumber: "",
+          questionPaper: "",
+          markScheme: "",
+          correctAnswer: "",
+          explanation: "",
+          specialComment: "",
+        },
+      ]);
+  
+    } catch (error) {
+  
+      console.log(error);
+  
+      alert(
+        error?.message ||
+        error ||
+        "Upload Failed"
+      );
+    }
   };
 
   const handleAddData = async () => {
@@ -147,28 +306,28 @@ const UploadExcel = () => {
           })
         ).unwrap();
       }
-       // ✅ CREATE SUBJECT
-    if (activeModal === "subject") {
+      // ✅ CREATE SUBJECT
+      if (activeModal === "subject") {
 
-      await dispatch(
-        createSubject({
-          name: tempData.name,
-          boardId: tempData.link,
-        })
-      ).unwrap();
+        await dispatch(
+          createSubject({
+            name: tempData.name,
+            boardId: tempData.link,
+          })
+        ).unwrap();
 
-      dispatch(fetchSubjects(tempData.link));
-    }
+        dispatch(fetchSubjects(tempData.link));
+      }
 
-    if(activeModal==="topic"){
-      await dispatch(
-        createTopic({
-          name:tempData.name,
-          subjectId:tempData.link
-        })
-      ).unwrap();
-      dispatch(fetchTopics(tempData.link));
-    }
+      if (activeModal === "topic") {
+        await dispatch(
+          createTopic({
+            name: tempData.name,
+            subjectId: tempData.link
+          })
+        ).unwrap();
+        dispatch(fetchTopics(tempData.link));
+      }
       // ✅ CLOSE MODAL
       setActiveModal(null);
 
@@ -240,23 +399,23 @@ const UploadExcel = () => {
                           <select value={row.board} onChange={(e) => updateRow(row.id, 'board', e.target.value)} className="w-full border border-slate-200 rounded-lg p-1.5 text-xs">
                             <option value="">Select Board</option>
                             {boards.map((b) => (
-                              <option key={b._id} value={b._id}>
+                              <option key={b._id} value={b.name}>
                                 {b.name}
                               </option>
                             ))}
                           </select>
                           <select value={row.subject} onChange={(e) => updateRow(row.id, 'subject', e.target.value)} className="w-full border border-slate-200 rounded-lg p-1.5 text-xs">
                             <option value="">Select Subject</option>
-                            {subjects.map((s) => (
-                              <option key={s._id} value={s._id}>
+                            {row.subjects.map((s) => (
+                              <option key={s._id} value={s.name}>
                                 {s.name}
                               </option>
                             ))}
                           </select>
                           <select value={row.topic} onChange={(e) => updateRow(row.id, 'topic', e.target.value)} className="w-full border border-slate-200 rounded-lg p-1.5 text-xs">
                             <option value="">Select Topic</option>
-                            {topics.map((t) => (
-                              <option key={t._id} value={t._id}>
+                            {row.topics.map((t) => (
+                              <option key={t._id} value={t.name}>
                                 {t.name}
                               </option>
                             ))}
@@ -270,9 +429,46 @@ const UploadExcel = () => {
                             <option value="Spring">Spring</option>
                           </select>
                           <div className="flex gap-1">
-                            <input type="text" placeholder="Paper" value={row.paperName} onChange={(e) => updateRow(row.id, 'paperName', e.target.value)} className="flex-1 border border-slate-200 rounded-lg p-1.5 text-xs" />
-                            <select value={row.variant} onChange={(e) => updateRow(row.id, 'variant', e.target.value)} className="w-12 border border-slate-200 rounded-lg p-1 text-xs">
-                              <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+                            <select
+                              value={row.paperName}
+                              onChange={(e) =>
+                                updateRow(row.id, "paperName", e.target.value)
+                              }
+                              className="flex-1 border border-slate-200 rounded-lg p-1.5 text-xs"
+                            >
+                              <option value="">Select Paper</option>
+
+                              <option value="1">1</option>
+
+                              <option value="2">2</option>
+
+                              <option value="1(core)">1(core)</option>
+
+                              <option value="2(extended)">
+                                2(extended)
+                              </option>
+
+                              <option value="3">3</option>
+
+                              <option value="4">4</option>
+
+                              <option value="5">5</option>
+
+                              <option value="6">6</option>
+                            </select>
+
+                            <select
+                              value={row.variant}
+                              onChange={(e) =>
+                                updateRow(row.id, "variant", e.target.value)
+                              }
+                              className="w-12 border border-slate-200 rounded-lg p-1 text-xs"
+                            >
+                              <option value="1">1</option>
+
+                              <option value="2">2</option>
+
+                              <option value="3">3</option>
                             </select>
                           </div>
                         </td>
@@ -392,58 +588,58 @@ const UploadExcel = () => {
                 </select>
               )}
               {activeModal === "topic" && (
-  <>
+                <>
 
-    {/* SELECT BOARD */}
-    <select
-      className="w-full border border-slate-200 p-3 rounded-xl mb-4 text-sm"
-      value={tempData.boardId || ""}
-      onChange={(e) => {
+                  {/* SELECT BOARD */}
+                  <select
+                    className="w-full border border-slate-200 p-3 rounded-xl mb-4 text-sm"
+                    value={tempData.boardId || ""}
+                    onChange={(e) => {
 
-        const boardId = e.target.value;
+                      const boardId = e.target.value;
 
-        setTempData({
-          ...tempData,
-          boardId,
-          link: "",
-        });
+                      setTempData({
+                        ...tempData,
+                        boardId,
+                        link: "",
+                      });
 
-        dispatch(clearSubjects());
+                      dispatch(clearSubjects());
 
-        dispatch(fetchSubjects(boardId));
-      }}
-    >
-      <option value="">Select Board</option>
+                      dispatch(fetchSubjects(boardId));
+                    }}
+                  >
+                    <option value="">Select Board</option>
 
-      {boards.map((b) => (
-        <option key={b._id} value={b._id}>
-          {b.name}
-        </option>
-      ))}
-    </select>
+                    {boards.map((b) => (
+                      <option key={b._id} value={b._id}>
+                        {b.name}
+                      </option>
+                    ))}
+                  </select>
 
-    {/* SELECT SUBJECT */}
-    <select
-      className="w-full border border-slate-200 p-3 rounded-xl mb-4 text-sm"
-      value={tempData.link}
-      onChange={(e) =>
-        setTempData({
-          ...tempData,
-          link: e.target.value,
-        })
-      }
-    >
-      <option value="">Select Subject</option>
+                  {/* SELECT SUBJECT */}
+                  <select
+                    className="w-full border border-slate-200 p-3 rounded-xl mb-4 text-sm"
+                    value={tempData.link}
+                    onChange={(e) =>
+                      setTempData({
+                        ...tempData,
+                        link: e.target.value,
+                      })
+                    }
+                  >
+                    <option value="">Select Subject</option>
 
-      {subjects.map((s) => (
-        <option key={s._id} value={s._id}>
-          {s.name}
-        </option>
-      ))}
-    </select>
+                    {subjects.map((s) => (
+                      <option key={s._id} value={s._id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
 
-  </>
-)}
+                </>
+              )}
               <div className="flex gap-2">
                 <button onClick={() => setActiveModal(null)} className="flex-1 px-4 py-3 text-slate-500 font-bold hover:bg-slate-50 rounded-xl transition">Cancel</button>
                 <button onClick={handleAddData} className="flex-1 bg-slate-900 text-white px-4 py-3 rounded-xl font-bold hover:bg-slate-800 transition shadow-lg shadow-slate-200">Save</button>

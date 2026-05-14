@@ -8,7 +8,8 @@ import paperNameReducer from "../features/paperName/paperNameSlice";
 import quizReducer from "../features/quiz/quizSlice";
 import quizFilterSlice from "../features/filter/quizFilterSlice";
 import planReducer from "../features/subscription_plans/planSlice";
-import userReducer from "../features/user/userSlice"
+import userReducer from "../features/user/userSlice";
+import questionReducer from "../features/question/questionSlice"
 export const store = configureStore({
   reducer: {
     boards: boardReducer,
@@ -20,6 +21,7 @@ export const store = configureStore({
     quizzes:quizReducer,
     quizFilters:quizFilterSlice,
     plans:planReducer,
-    user:userReducer
+    user:userReducer,
+    questions: questionReducer,
   },
 });
