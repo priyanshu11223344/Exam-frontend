@@ -111,7 +111,6 @@ const SearchForm = () => {
  
   // ✅ ADDED (ONLY THIS LINE)
   const { features, role } = useSelector((state) => state.user);
-  console.log("USER STATE:", { role, features });
   const [openDropdown, setOpenDropdown] = useState(null);
 
   useEffect(() => {

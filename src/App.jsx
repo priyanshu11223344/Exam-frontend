@@ -1,8 +1,4 @@
-import React, { useState } from 'react';
-import { useSelector } from 'react-redux';
-import Navbar from './Components/Navbar.jsx';
-import SearchForm from './Components/SearchForm.jsx';
-import ResourceCard from './Components/ResourceCard.jsx';
+import React from 'react';
 import Home from './Components/Home.jsx';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { SignIn, SignUp } from "@clerk/react"
@@ -14,21 +10,36 @@ import AdminProtected from "./Components/ProtectedRoutes/AdminProtected.jsx"
 import UserDashboard from './Components/UserDashboard.jsx';
 import Quiz from './Components/Quiz/Quiz.jsx';
 import PricingPage from './Components/Subscription/PricingPage.jsx';
-import { fetchUser } from './features/user/userSlice.js';
+import { fetchUser, setAdminAccess } from './features/user/userSlice.js';
 import { useDispatch } from 'react-redux';
 import { useEffect } from 'react';
 import { Toaster } from 'react-hot-toast';
 import FeatureProtectedRoute from './Components/ProtectedRoutes/FeatureProtectedRoute.jsx';
-import { useAuth } from '@clerk/react';
+import { useAuth, useUser } from '@clerk/react';
 const App = () => {
   const dispatch = useDispatch();
   // 🔥 Get real papers from Redux
   const {getToken}=useAuth();
+  const { user, isLoaded } = useUser();
+
   useEffect(() => {
-    if (getToken) {
-      dispatch(fetchUser({ getToken }));
+    if (!isLoaded || !user) return;
+
+    const role = user.publicMetadata?.role;
+
+    if (role === "admin") {
+      dispatch(setAdminAccess({
+        name: user.fullName || user.firstName || "Admin",
+        email: user.primaryEmailAddress?.emailAddress || "",
+      }));
     }
-  }, [dispatch, getToken]);
+  }, [dispatch, isLoaded, user]);
+
+  useEffect(() => {
+    if (getToken && isLoaded && user) {
+      dispatch(fetchUser({ getToken, clerkUser: user }));
+    }
+  }, [dispatch, getToken, isLoaded, user]);
 
   return (
     // <div className="min-h-screen pb-20">

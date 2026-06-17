@@ -1,37 +1,42 @@
 // Quiz.jsx
 import React, { useState ,useEffect} from 'react';
 import { useSelector,useDispatch } from 'react-redux';
-import SearchForm from '../SearchForm.jsx'; // Reusing your existing search logic
 import QuizCard from './QuizCard.jsx';     // Assuming you'll create a specific card for Quizzes
 import Navbar from '../Navbar.jsx';
 import Sidebar from '../Sidebar.jsx';
 import QuizSearchForm from './QuizSearchFrom.jsx';
 import { setQuizData } from '../../features/quiz/quizSlice.js';
 import { fetchSubjects } from '../../features/subject/subjectSlice.js';
+import API from '../../api/axios.js';
+import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 const Quiz = () => {
   // Replace 'papers' with your quiz state slice
   const { quizzes = [], loading } = useSelector(state => state.quizzes || {});
   const { subjects = [] } = useSelector((state) => state.subjects);
   console.log(quizzes);
+  const { role } = useSelector((state) => state.user);
   const filters = useSelector((state) => state.quizFilters);
-  const [hasSearched, setHasSearched] = useState(false);
+  const [hasSearched, setHasSearched] = useState(() => Boolean(sessionStorage.getItem("quizData")));
   const dispatch=useDispatch();
+  const navigate = useNavigate();
   useEffect(()=>{
     const savedQuiz=sessionStorage.getItem("quizData");
     if(savedQuiz){
       dispatch(setQuizData(JSON.parse(savedQuiz)))
-      setHasSearched(true);
     }
-  },[]);
+  },[dispatch]);
   useEffect(()=>{
     if(filters.boardId){
       dispatch(fetchSubjects(filters.boardId));
     }
-  },[filters.boardId]);
+  },[dispatch, filters.boardId]);
   const selectedSubject=subjects.find(
     (s)=>s._id===filters.subjectId
   );
   useEffect(() => {
+    if (role === "admin") return;
+
     const checkAccess = async () => {
       try {
         await API.get("/feature/mcq");
@@ -42,7 +47,7 @@ const Quiz = () => {
     };
   
     checkAccess();
-  }, []);
+  }, [navigate, role]);
   return (
     <div className="flex">
       <Sidebar />

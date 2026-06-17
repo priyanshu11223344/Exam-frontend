@@ -6,17 +6,18 @@ import { useDispatch, useSelector } from "react-redux";
 import { fetchPlans } from '../../features/subscription_plans/planSlice'; 
 import { fetchUser } from '../../features/user/userSlice';
 
-import axios from "axios";                  // ✅ ADDED
 import toast from "react-hot-toast";        // ✅ ADDED
 import API from '../../api/axios';
-import {useAuth} from "@clerk/react"
+import { useAuth, useUser } from "@clerk/react"
 const PricingPage = () => {
 
   const dispatch = useDispatch();
   const { plans, loading } = useSelector((state) => state.plans);
 
   const [selectedPlan, setSelectedPlan] = useState(null);
+  const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
   const { getToken } = useAuth();
+  const { user } = useUser();
 
   // 🔥 Fetch plans from backend
   useEffect(() => {
@@ -24,7 +25,6 @@ const PricingPage = () => {
   }, [dispatch]);
 
   // 🔥 Extract plans
-  const freePlan = plans.find(p => p.name === "Free");
   const premiumPlan = plans.find(p => p.name === "Pro");
 
   // 🔥 Set default selected duration
@@ -36,9 +36,14 @@ const PricingPage = () => {
 
   // 🔥 Payment handler (UPDATED ONLY THIS LOGIC)
   const handlePayment = async (planId, durationLabel) => {
+    const loadingToast = toast.loading("Processing payment...");
+    setIsPaymentProcessing(true);
+
     try {
-      const loadingToast = toast.loading("Processing payment...");
-  
+      if (!planId || !durationLabel) {
+        throw new Error("Please select a plan duration before paying.");
+      }
+
       // ✅ Fix closure issue
       const currentPlanId = planId;
       const currentDuration = durationLabel;
@@ -49,6 +54,11 @@ const PricingPage = () => {
         {
           planId: currentPlanId,
           duration: currentDuration,
+          user: {
+            clerkId: user?.id,
+            name: user?.fullName || user?.firstName || "Local User",
+            email: user?.primaryEmailAddress?.emailAddress,
+          },
         },
         {
           headers: {
@@ -56,6 +66,22 @@ const PricingPage = () => {
           },
         }
       );
+
+      if (data.localPaymentBypass) {
+        toast.dismiss(loadingToast);
+        setIsPaymentProcessing(false);
+        toast.success(data.message || "Local payment bypass complete");
+        try {
+          await dispatch(fetchUser({ getToken, clerkUser: user }));
+        } catch (error) {
+          console.warn("Unable to refresh local user after bypass", error);
+        }
+        return;
+      }
+
+      if (!window.Razorpay) {
+        throw new Error("Payment checkout could not load. Please refresh and try again.");
+      }
   
       const options = {
         key: data.key,
@@ -85,14 +111,16 @@ const PricingPage = () => {
               );
   
             toast.dismiss(loadingToast);
+            setIsPaymentProcessing(false);
             toast.success("Payment successful 🎉");
   
             // 🔥 3. Refresh user
-            await dispatch(fetchUser({ getToken }));
+            await dispatch(fetchUser({ getToken, clerkUser: user }));
   
           } catch (err) {
             console.error(err);
             toast.dismiss(loadingToast);
+            setIsPaymentProcessing(false);
             toast.error("Payment verification failed");
           }
         },
@@ -105,6 +133,13 @@ const PricingPage = () => {
         theme: {
           color: "#6366f1",
         },
+
+        modal: {
+          ondismiss: function () {
+            toast.dismiss(loadingToast);
+            setIsPaymentProcessing(false);
+          },
+        },
       };
   
       const rzp = new window.Razorpay(options);
@@ -112,7 +147,9 @@ const PricingPage = () => {
   
     } catch (err) {
       console.error(err);
-      toast.error("Payment failed. Try again.");
+      toast.dismiss(loadingToast);
+      setIsPaymentProcessing(false);
+      toast.error(err.response?.data?.error || err.message || "Payment failed. Try again.");
     }
   };
 
@@ -220,9 +257,10 @@ const PricingPage = () => {
 
                 <button 
                   onClick={() => handlePayment(premiumPlan?._id, selectedPlan?.label)}
-                  className="w-full py-4 px-6 rounded-xl font-bold bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95"
+                  disabled={isPaymentProcessing}
+                  className="w-full py-4 px-6 rounded-xl font-bold bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95 disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none disabled:cursor-not-allowed"
                 >
-                  Pay ${selectedPlan?.price || 0} & Upgrade
+                  {isPaymentProcessing ? "Opening checkout..." : `Pay $${selectedPlan?.price || 0} & Upgrade`}
                 </button>
               </div>
 

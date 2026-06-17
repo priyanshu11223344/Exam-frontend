@@ -7,22 +7,30 @@ import {
 } from 'lucide-react';
 import { useDispatch, useSelector } from "react-redux";
 import { fetchUser, updateUser } from '../features/user/userSlice';
-import { useAuth } from '@clerk/react';
+import { useAuth, useUser } from '@clerk/react';
 import Logo from "../assets/Aurethia_logo.avif"
+import API from '../api/axios';
 const UserDashboard = () => {
   const dispatch = useDispatch();
   const { getToken } = useAuth();
-  const { user, loading } = useSelector((state) => state.user);
+  const { user: clerkUser, isLoaded: isClerkLoaded } = useUser();
+  const { user, loading, error } = useSelector((state) => state.user);
   
   // Modal & Form State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: '', school: '', board: '', studentClass: '', age: ''
   });
+  const [activeTab, setActiveTab] = useState("dashboard");
+  const [assignedExams, setAssignedExams] = useState([]);
+  const [examLoading, setExamLoading] = useState(false);
+  const [answerFiles, setAnswerFiles] = useState({});
 
   useEffect(() => { 
-    dispatch(fetchUser({ getToken })); 
-  }, [dispatch, getToken]);
+    if (isClerkLoaded && clerkUser) {
+      dispatch(fetchUser({ getToken, clerkUser }));
+    }
+  }, [dispatch, getToken, isClerkLoaded, clerkUser]);
 
   // Keep form in sync with user data
   useEffect(() => {
@@ -37,7 +45,33 @@ const UserDashboard = () => {
     }
   }, [user, isModalOpen]);
 
-  if (loading || !user) {
+  useEffect(() => {
+    const loadAssignments = async () => {
+      if (!user?.board || !user?.studentClass) {
+        setAssignedExams([]);
+        return;
+      }
+
+      setExamLoading(true);
+      try {
+        const response = await API.get("/exams/assignments", {
+          params: {
+            board: user.board,
+            className: user.studentClass,
+          },
+        });
+        setAssignedExams(response.data.data || []);
+      } catch (error) {
+        console.error("Unable to load assigned exams", error);
+      } finally {
+        setExamLoading(false);
+      }
+    };
+
+    loadAssignments();
+  }, [user?.board, user?.studentClass]);
+
+  if (loading || !isClerkLoaded) {
     return (
       <div className="h-screen flex flex-col items-center justify-center bg-[#F8FAFC]">
         <div className="relative w-16 h-16">
@@ -49,16 +83,51 @@ const UserDashboard = () => {
     );
   }
 
+  if (error || !user) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center bg-[#F8FAFC] px-6 text-center">
+        <h1 className="text-2xl font-bold text-slate-900">Unable to prepare your dashboard</h1>
+        <p className="mt-2 max-w-lg text-slate-500">
+          {error || "Your student profile could not be loaded."}
+        </p>
+        <button
+          type="button"
+          onClick={() => dispatch(fetchUser({ getToken, clerkUser }))}
+          className="mt-6 rounded-lg bg-indigo-600 px-5 py-3 font-semibold text-white hover:bg-indigo-700"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    dispatch(updateUser({ getToken, formData }));
+    dispatch(updateUser({ getToken, clerkUser, formData }));
     setIsModalOpen(false);
   };
 
-  const upcomingExams = [
-    { id: 1, title: "Advanced Mathematics", time: "Today, 04:00 PM", duration: "60 mins" },
-    { id: 2, title: "Operating Systems", time: "Tomorrow, 10:00 AM", duration: "90 mins" },
-  ];
+  const handleAnswerUpload = async (assignmentId) => {
+    const files = answerFiles[assignmentId] || [];
+
+    if (!files.length) {
+      alert("Select answer-sheet photos first.");
+      return;
+    }
+
+    const uploadData = new FormData();
+    files.forEach((file) => uploadData.append("answerSheets", file));
+    uploadData.append("userEmail", user.email);
+    uploadData.append("userName", user.name);
+
+    try {
+      await API.post(`/exams/assignments/${assignmentId}/answer-sheets`, uploadData);
+      alert("Answer sheets submitted");
+      setAnswerFiles({ ...answerFiles, [assignmentId]: [] });
+    } catch (error) {
+      alert(error.response?.data?.error || "Unable to submit answer sheets");
+    }
+  };
 
   return (
     <div className="flex h-screen bg-[#F1F5F9] text-slate-800 font-sans">
@@ -75,10 +144,10 @@ const UserDashboard = () => {
         </div>
         
         <nav className="flex-1 px-4 space-y-1.5">
-          <SidebarItem icon={<LayoutDashboard size={20}/>} label="Dashboard" active />
-          <SidebarItem icon={<BookOpen size={20}/>} label="My Exams" />
-          <SidebarItem icon={<Trophy size={20}/>} label="Performance" />
-          <SidebarItem icon={<User size={20}/>} label="Profile" />
+          <SidebarItem icon={<LayoutDashboard size={20}/>} label="Dashboard" active={activeTab === "dashboard"} onClick={() => setActiveTab("dashboard")} />
+          <SidebarItem icon={<BookOpen size={20}/>} label="My Exams" active={activeTab === "exams"} onClick={() => setActiveTab("exams")} />
+          <SidebarItem icon={<Trophy size={20}/>} label="Performance" active={activeTab === "performance"} onClick={() => setActiveTab("performance")} />
+          <SidebarItem icon={<User size={20}/>} label="Profile" active={activeTab === "profile"} onClick={() => setActiveTab("profile")} />
         </nav>
 
         <div className="p-6 mt-auto">
@@ -123,7 +192,7 @@ const UserDashboard = () => {
         <div className="p-10 max-w-7xl mx-auto space-y-10">
           
           {/* --- PROFILE SECTION --- */}
-          <section className="relative">
+          {activeTab === "dashboard" && <section className="relative">
             <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-200/50 overflow-hidden relative">
               <div className="absolute top-0 right-0 w-40 h-40 bg-indigo-50 rounded-bl-full -mr-16 -mt-16 opacity-40"></div>
               
@@ -161,10 +230,10 @@ const UserDashboard = () => {
                 <DetailBox icon={<Calendar size={18} />} label="Age" value={user?.age} color="rose" />
               </div>
             </div>
-          </section>
+          </section>}
 
           {/* --- DASHBOARD GRID --- */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+          {activeTab === "dashboard" && <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
             
             {/* Left Col: Upcoming Exams */}
             <div className="lg:col-span-2 space-y-6">
@@ -174,18 +243,24 @@ const UserDashboard = () => {
               </div>
               
               <div className="grid gap-4">
-                {upcomingExams.map(exam => (
-                  <div key={exam.id} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex items-center justify-between group hover:border-indigo-300 transition-all hover:shadow-md">
+                {examLoading && <p className="text-slate-500 font-semibold">Loading assignments...</p>}
+                {!examLoading && assignedExams.slice(0, 3).length === 0 && (
+                  <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm text-slate-500 font-semibold">
+                    No assigned exams yet for your board and class.
+                  </div>
+                )}
+                {assignedExams.slice(0, 3).map(exam => (
+                  <div key={exam._id} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex items-center justify-between group hover:border-indigo-300 transition-all hover:shadow-md">
                     <div className="flex items-center gap-5">
                       <div className="bg-indigo-50 p-4 rounded-2xl text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all">
                         <Clock size={24} />
                       </div>
                       <div>
                         <h3 className="font-bold text-slate-900 text-lg leading-none mb-1">{exam.title}</h3>
-                        <p className="text-sm text-slate-500 font-medium">{exam.time} • <span className="text-indigo-500">{exam.duration}</span></p>
+                        <p className="text-sm text-slate-500 font-medium">{exam.subject} • <span className="text-indigo-500">{exam.durationMinutes || 60} mins</span></p>
                       </div>
                     </div>
-                    <button className="bg-slate-50 text-slate-900 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all">
+                    <button onClick={() => setActiveTab("exams")} className="bg-slate-50 text-slate-900 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all">
                       Launch
                     </button>
                   </div>
@@ -221,7 +296,109 @@ const UserDashboard = () => {
               </div>
 
             </div>
-          </div>
+          </div>}
+
+          {activeTab === "exams" && (
+            <section className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-black text-slate-900">My Exams</h2>
+                <p className="text-sm font-semibold text-slate-500">
+                  Papers assigned to {user?.board || "your board"} / Class {user?.studentClass || "---"}
+                </p>
+              </div>
+
+              {!user?.board || !user?.studentClass ? (
+                <div className="bg-white rounded-3xl border border-slate-200 p-8 text-slate-600 font-semibold">
+                  Add your board and class in profile details to see assigned exams.
+                </div>
+              ) : examLoading ? (
+                <div className="bg-white rounded-3xl border border-slate-200 p-8 text-slate-600 font-semibold">
+                  Loading assigned exams...
+                </div>
+              ) : assignedExams.length === 0 ? (
+                <div className="bg-white rounded-3xl border border-slate-200 p-8 text-slate-600 font-semibold">
+                  No exams have been assigned to your board and class yet.
+                </div>
+              ) : (
+                <div className="grid gap-5">
+                  {assignedExams.map((exam) => (
+                    <div key={exam._id} className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div>
+                          <span className="inline-flex rounded-full bg-indigo-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-indigo-600">
+                            {exam.type === "quiz" ? "Quiz" : "Question Paper"}
+                          </span>
+                          <h3 className="mt-3 text-xl font-black text-slate-900">{exam.title}</h3>
+                          <p className="mt-1 text-sm font-semibold text-slate-500">
+                            {exam.subject} • {exam.durationMinutes || 60} mins
+                            {exam.dueAt ? ` • Due ${new Date(exam.dueAt).toLocaleString()}` : ""}
+                          </p>
+                          {exam.instructions && <p className="mt-3 text-sm text-slate-600">{exam.instructions}</p>}
+                        </div>
+
+                        {exam.type === "quiz" ? (
+                          <a href="/quiz" className="rounded-2xl bg-indigo-600 px-5 py-3 text-center text-xs font-black uppercase tracking-widest text-white">
+                            Start Quiz
+                          </a>
+                        ) : (
+                          <a
+                            href={`${API.defaults.baseURL?.replace("/api", "")}${exam.questionPaper?.path}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="rounded-2xl bg-slate-900 px-5 py-3 text-center text-xs font-black uppercase tracking-widest text-white"
+                          >
+                            Open Paper
+                          </a>
+                        )}
+                      </div>
+
+                      {exam.type === "paper" && (
+                        <div className="mt-5 rounded-2xl bg-slate-50 p-4">
+                          <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500">
+                            Upload answer-sheet photos
+                          </label>
+                          <div className="mt-3 flex flex-col gap-3 md:flex-row">
+                            <input
+                              type="file"
+                              multiple
+                              accept="image/*,.pdf"
+                              onChange={(event) =>
+                                setAnswerFiles({
+                                  ...answerFiles,
+                                  [exam._id]: Array.from(event.target.files || []),
+                                })
+                              }
+                              className="flex-1 rounded-xl border border-slate-200 bg-white p-3 text-sm"
+                            />
+                            <button
+                              onClick={() => handleAnswerUpload(exam._id)}
+                              className="rounded-xl bg-emerald-600 px-5 py-3 text-xs font-black uppercase tracking-widest text-white"
+                            >
+                              Submit Answers
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
+          {activeTab === "performance" && (
+            <section className="bg-white rounded-3xl border border-slate-200 p-8">
+              <h2 className="text-2xl font-black text-slate-900">Performance</h2>
+              <p className="mt-2 text-slate-500 font-semibold">Grades and submitted exam history will appear here after teachers review submissions.</p>
+            </section>
+          )}
+
+          {activeTab === "profile" && (
+            <section className="bg-white rounded-3xl border border-slate-200 p-8">
+              <h2 className="text-2xl font-black text-slate-900">Profile</h2>
+              <p className="mt-2 text-slate-500 font-semibold">Use Edit Details on the dashboard to update school, board and class.</p>
+            </section>
+          )}
         </div>
       </main>
 
@@ -351,14 +528,14 @@ const PremiumInput = ({ label, value, icon, onChange, type = "text" }) => (
   </div>
 );
 
-const SidebarItem = ({ icon, label, active = false }) => (
-  <a href="#" className={`flex items-center gap-4 px-5 py-4 rounded-2xl transition-all group ${
+const SidebarItem = ({ icon, label, active = false, onClick }) => (
+  <button onClick={onClick} className={`flex w-full items-center gap-4 px-5 py-4 rounded-2xl transition-all group ${
     active ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/30' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
   }`}>
     <div className={`${active ? 'text-white' : 'text-slate-500 group-hover:text-indigo-400'} transition-colors`}>{icon}</div>
     <span className="font-bold text-sm tracking-tight">{label}</span>
     {active && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white animate-pulse"></div>}
-  </a>
+  </button>
 );
 
 const ResultItem = ({ subject, score, date, trend }) => (

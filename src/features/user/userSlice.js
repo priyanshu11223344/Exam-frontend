@@ -3,13 +3,18 @@ import API from "../../api/axios";
 
 export const fetchUser = createAsyncThunk(
   "user/fetchUser",
-  async ({ getToken }, thunkAPI) => {
+  async ({ getToken, clerkUser }, thunkAPI) => {
     try {
       const token = await getToken();
 
       const res = await API.get("/user/me", {
         headers: {
           Authorization: `Bearer ${token}`,
+          "X-Local-Clerk-Id": clerkUser?.id || "",
+          "X-Local-User-Email":
+            clerkUser?.primaryEmailAddress?.emailAddress || "",
+          "X-Local-User-Name":
+            clerkUser?.fullName || clerkUser?.firstName || "Student",
         },
       });
 
@@ -23,7 +28,7 @@ export const fetchUser = createAsyncThunk(
 );
 export const updateUser = createAsyncThunk(
   "user/updateUser",
-  async ({ getToken, formData }, thunkAPI) => {
+  async ({ getToken, clerkUser, formData }, thunkAPI) => {
     try {
       const token = await getToken();
 
@@ -33,6 +38,11 @@ export const updateUser = createAsyncThunk(
         {
           headers: {
             Authorization: `Bearer ${token}`,
+            "X-Local-Clerk-Id": clerkUser?.id || "",
+            "X-Local-User-Email":
+              clerkUser?.primaryEmailAddress?.emailAddress || "",
+            "X-Local-User-Name":
+              clerkUser?.fullName || clerkUser?.firstName || "Student",
           },
         }
       );
@@ -55,7 +65,18 @@ const userSlice = createSlice({
     loading: false,
     error: null,
   },
-  reducers: {},
+  reducers: {
+    setAdminAccess: (state, action) => {
+      state.user = {
+        ...(state.user || {}),
+        ...(action.payload || {}),
+      };
+      state.role = "admin";
+      state.planName = "Admin";
+      state.features = ["topical", "mcq", "pdf", "years_access"];
+      state.error = null;
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(fetchUser.pending, (state) => {
@@ -81,4 +102,5 @@ const userSlice = createSlice({
   }
 });
 
+export const { setAdminAccess } = userSlice.actions;
 export default userSlice.reducer;
