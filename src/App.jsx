@@ -7,7 +7,9 @@ import LandingPage from './Components/LandingPage.jsx';
 import ProtectedRoute from './Components/ProtectedRoutes/ProtectedRoute.jsx';
 import RedirectPage from './Components/Redirect.jsx';
 import AdminProtected from "./Components/ProtectedRoutes/AdminProtected.jsx"
+import TeacherProtected from "./Components/ProtectedRoutes/TeacherProtected.jsx"
 import UserDashboard from './Components/UserDashboard.jsx';
+import TeacherDashboard from './Components/TeacherDashboard.jsx';
 import Quiz from './Components/Quiz/Quiz.jsx';
 import PricingPage from './Components/Subscription/PricingPage.jsx';
 import { fetchUser, setAdminAccess } from './features/user/userSlice.js';
@@ -96,6 +98,7 @@ const App = () => {
         />
         <Route path="/admin" element={<AdminProtected><Admin /></AdminProtected>}></Route>
         <Route path="/UserDashboard" element={<UserDashboard />}></Route>
+        <Route path="/TeacherDashboard" element={<TeacherProtected><TeacherDashboard /></TeacherProtected>}></Route>
         <Route path="/pricingPage" element={<PricingPage />}></Route>
       </Routes>
     </Router>

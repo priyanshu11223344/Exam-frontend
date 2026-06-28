@@ -15,6 +15,7 @@ import {
   Link as LinkIcon,
   ListChecks,
   Loader2,
+  MessageSquareText,
   Plus,
   RefreshCw,
   Settings,
@@ -94,6 +95,16 @@ const Admin = () => {
   const [tempData, setTempData] = useState({ name: "", link: "", boardId: "" });
   const [assignmentFile, setAssignmentFile] = useState(null);
   const [assignmentSaving, setAssignmentSaving] = useState(false);
+  const [teacherData, setTeacherData] = useState({ teachers: [], assignments: [] });
+  const [teacherRemarks, setTeacherRemarks] = useState([]);
+  const [teacherSaving, setTeacherSaving] = useState(false);
+  const [teacherForm, setTeacherForm] = useState({
+    teacherId: "",
+    teacherEmail: "",
+    teacherName: "",
+    board: "",
+    classes: "",
+  });
   const [assignmentForm, setAssignmentForm] = useState({
     title: "",
     type: "quiz",
@@ -116,6 +127,19 @@ const Admin = () => {
   const plans = summary?.plans || [];
   const activePlans = plans.filter((plan) => plan.isActive);
 
+  const loadTeachers = useCallback(async () => {
+    try {
+      const [teacherRes, remarksRes] = await Promise.all([
+        API.get("/admin/teachers"),
+        API.get("/admin/teacher-remarks"),
+      ]);
+      setTeacherData(teacherRes.data.data || { teachers: [], assignments: [] });
+      setTeacherRemarks(remarksRes.data.data || []);
+    } catch (error) {
+      console.warn("Unable to load teacher data", error);
+    }
+  }, []);
+
   const loadDashboard = useCallback(async () => {
     setSummaryLoading(true);
     setSummaryError("");
@@ -125,12 +149,13 @@ const Admin = () => {
         dispatch(fetchBoards()),
       ]);
       setSummary(dashboardRes.data.data);
+      loadTeachers();
     } catch (error) {
       setSummaryError(error.response?.data?.error || "Unable to load admin dashboard");
     } finally {
       setSummaryLoading(false);
     }
-  }, [dispatch]);
+  }, [dispatch, loadTeachers]);
 
   useEffect(() => {
     loadDashboard();
@@ -346,11 +371,50 @@ const Admin = () => {
     }
   };
 
+  const handleTeacherAssign = async (event) => {
+    event.preventDefault();
+
+    if ((!teacherForm.teacherId && !teacherForm.teacherEmail) || !teacherForm.board || !teacherForm.classes) {
+      alert("Select or enter a teacher, board and at least one class.");
+      return;
+    }
+
+    setTeacherSaving(true);
+    try {
+      await API.post("/admin/teachers/assign", {
+        ...teacherForm,
+        classes: teacherForm.classes
+          .split(",")
+          .map((className) => className.trim())
+          .filter(Boolean),
+      });
+      setTeacherForm({ teacherId: "", teacherEmail: "", teacherName: "", board: "", classes: "" });
+      await loadTeachers();
+      await loadDashboard();
+      alert("Teacher assignment saved");
+    } catch (error) {
+      alert(error.response?.data?.error || "Unable to assign teacher");
+    } finally {
+      setTeacherSaving(false);
+    }
+  };
+
+  const saveSuperadminNote = async (sessionId, superadminNote) => {
+    try {
+      await API.put(`/admin/teacher-remarks/${sessionId}`, { superadminNote });
+      await loadTeachers();
+    } catch (error) {
+      alert(error.response?.data?.error || "Unable to save note");
+    }
+  };
+
   const sections = [
     { id: "overview", label: "Overview", icon: LayoutDashboard },
     { id: "content", label: "Content Map", icon: Boxes },
     { id: "questions", label: "Question Bank", icon: FileQuestion },
     { id: "assignments", label: "Assignments", icon: BookOpen },
+    { id: "teachers", label: "Teachers", icon: GraduationCap },
+    { id: "remarks", label: "Teacher Remarks", icon: MessageSquareText },
     { id: "students", label: "Students", icon: Users },
     { id: "plans", label: "Plans", icon: WalletCards },
     { id: "links", label: "App Links", icon: LinkIcon },
@@ -465,6 +529,7 @@ const Admin = () => {
                   <StatCard icon={Layers} label="Topics" value={counts.topics} tone="bg-emerald-50 text-emerald-700" helper={`${counts.paperNames || 0} paper labels`} />
                   <StatCard icon={FileQuestion} label="Questions" value={counts.questions} tone="bg-amber-50 text-amber-700" helper={`${counts.mcqQuestions || 0} MCQ enabled`} />
                   <StatCard icon={Users} label="Students" value={counts.users} tone="bg-rose-50 text-rose-700" helper={`${counts.paidUsers || 0} paid users`} />
+                  <StatCard icon={GraduationCap} label="Teachers" value={counts.teachers} tone="bg-violet-50 text-violet-700" helper={`${teacherData.assignments.length || 0} class assignments`} />
                 </div>
 
                 <div className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
@@ -864,6 +929,148 @@ const Admin = () => {
                     </button>
                   </div>
                 </form>
+              </section>
+            )}
+
+        {activeSection === "teachers" && (
+          <section className="space-y-6">
+            <div>
+              <h3 className="text-xl font-black">Teachers</h3>
+                  <p className="text-sm text-slate-500">Assign teachers to boards and classes. Teachers can publish papers, schedule classes and manage students in those classes.</p>
+                </div>
+
+                <form onSubmit={handleTeacherAssign} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="grid gap-4 lg:grid-cols-5">
+                    <label className="space-y-1 lg:col-span-2">
+                      <span className="text-xs font-black uppercase tracking-wide text-slate-500">Existing User</span>
+                      <select
+                        value={teacherForm.teacherId}
+                        onChange={(event) => {
+                          const selected = recentUsers.find((user) => user._id === event.target.value);
+                          setTeacherForm({
+                            ...teacherForm,
+                            teacherId: event.target.value,
+                            teacherEmail: selected?.email || teacherForm.teacherEmail,
+                            teacherName: selected?.name || teacherForm.teacherName,
+                          });
+                        }}
+                        className="w-full rounded-lg border border-slate-200 p-3 text-sm"
+                      >
+                        <option value="">Select user or enter email below</option>
+                        {recentUsers.map((user) => (
+                          <option key={user._id} value={user._id}>{user.name || "User"} - {user.email}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="space-y-1">
+                      <span className="text-xs font-black uppercase tracking-wide text-slate-500">Teacher Email</span>
+                      <input value={teacherForm.teacherEmail} onChange={(event) => setTeacherForm({ ...teacherForm, teacherEmail: event.target.value })} className="w-full rounded-lg border border-slate-200 p-3 text-sm" />
+                    </label>
+                    <label className="space-y-1">
+                      <span className="text-xs font-black uppercase tracking-wide text-slate-500">Teacher Name</span>
+                      <input value={teacherForm.teacherName} onChange={(event) => setTeacherForm({ ...teacherForm, teacherName: event.target.value })} className="w-full rounded-lg border border-slate-200 p-3 text-sm" />
+                    </label>
+                    <label className="space-y-1">
+                      <span className="text-xs font-black uppercase tracking-wide text-slate-500">Board</span>
+                      <select value={teacherForm.board} onChange={(event) => setTeacherForm({ ...teacherForm, board: event.target.value })} className="w-full rounded-lg border border-slate-200 p-3 text-sm">
+                        <option value="">Select Board</option>
+                        {boards.map((board) => <option key={board._id} value={board.name}>{board.name}</option>)}
+                      </select>
+                    </label>
+                    <label className="space-y-1 lg:col-span-4">
+                      <span className="text-xs font-black uppercase tracking-wide text-slate-500">Classes</span>
+                      <input value={teacherForm.classes} onChange={(event) => setTeacherForm({ ...teacherForm, classes: event.target.value })} className="w-full rounded-lg border border-slate-200 p-3 text-sm" placeholder="10, 11, 12" />
+                    </label>
+                    <button disabled={teacherSaving} className="rounded-lg bg-slate-950 px-5 py-3 text-sm font-black text-white disabled:bg-slate-300">
+                      {teacherSaving ? "Saving..." : "Assign Teacher"}
+                    </button>
+                  </div>
+                </form>
+
+                <div className="grid gap-4 xl:grid-cols-2">
+                  {teacherData.assignments.length === 0 && (
+                    <div className="rounded-lg border border-slate-200 bg-white p-5 text-sm text-slate-500">No teachers assigned yet.</div>
+                  )}
+                  {teacherData.assignments.map((assignment) => {
+                    const assignedClasses = Array.isArray(assignment.classes) ? assignment.classes : [];
+                    const teacherEmail = assignment.teacherEmail || assignment.teacher?.email || "No email saved";
+
+                    return (
+                    <div key={assignment._id || `${teacherEmail}-${assignment.board}`} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <h4 className="font-black">{assignment.teacherName || assignment.teacher?.name || "Teacher"}</h4>
+                          <p className="text-sm font-semibold text-slate-500">{teacherEmail}</p>
+                        </div>
+                        <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-black text-indigo-700">{assignment.board || "Board not set"}</span>
+                      </div>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {assignedClasses.length === 0 && (
+                          <span className="rounded-lg bg-amber-50 px-3 py-2 text-sm font-bold text-amber-700">
+                            No classes saved
+                          </span>
+                        )}
+                        {assignedClasses.map((entry, index) => (
+                          <span key={entry.className || index} className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700">
+                            Grade {entry.className || entry}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
+            {activeSection === "remarks" && (
+              <section className="space-y-6">
+                <div>
+                  <h3 className="text-xl font-black">Teacher Remarks</h3>
+                  <p className="text-sm text-slate-500">Every scheduled class is logged here for teacher and superadmin review.</p>
+                </div>
+
+                <div className="grid gap-4">
+                  {teacherRemarks.length === 0 && (
+                    <div className="rounded-lg border border-slate-200 bg-white p-5 text-sm text-slate-500">No scheduled classes have been logged yet.</div>
+                  )}
+                  {teacherRemarks.map((session) => (
+                    <div key={session._id} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                      <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                        <div>
+                          <h4 className="font-black">{session.title}</h4>
+                          <p className="text-sm font-semibold text-slate-500">
+                            {session.teacherName || session.teacher?.name || "Teacher"} - {session.board} Grade {session.className} - {session.subject}
+                          </p>
+                          <p className="text-xs font-bold uppercase tracking-wide text-indigo-600">{new Date(session.startsAt).toLocaleString()}</p>
+                        </div>
+                        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700">{session.status}</span>
+                      </div>
+                      <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                        <div className="rounded-lg bg-slate-50 p-3">
+                          <p className="text-xs font-black uppercase tracking-wide text-slate-500">Teacher taught</p>
+                          <p className="mt-2 text-sm text-slate-700">{session.teacherRemark || "No remark added yet."}</p>
+                        </div>
+                        <div className="rounded-lg bg-slate-50 p-3">
+                          <p className="text-xs font-black uppercase tracking-wide text-slate-500">Issues / follow-ups</p>
+                          <p className="mt-2 text-sm text-slate-700">{session.teacherIssues || "No issues logged."}</p>
+                        </div>
+                      </div>
+                      <div className="mt-4 flex flex-col gap-3 md:flex-row">
+                        <input
+                          defaultValue={session.superadminNote || ""}
+                          placeholder="Superadmin note for this class"
+                          className="flex-1 rounded-lg border border-slate-200 p-3 text-sm"
+                          onBlur={(event) => {
+                            if (event.target.value !== (session.superadminNote || "")) {
+                              saveSuperadminNote(session._id, event.target.value);
+                            }
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </section>
             )}
 

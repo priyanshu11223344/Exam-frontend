@@ -23,6 +23,7 @@ const UserDashboard = () => {
   });
   const [activeTab, setActiveTab] = useState("dashboard");
   const [assignedExams, setAssignedExams] = useState([]);
+  const [classSessions, setClassSessions] = useState([]);
   const [examLoading, setExamLoading] = useState(false);
   const [answerFiles, setAnswerFiles] = useState({});
 
@@ -49,20 +50,30 @@ const UserDashboard = () => {
     const loadAssignments = async () => {
       if (!user?.board || !user?.studentClass) {
         setAssignedExams([]);
+        setClassSessions([]);
         return;
       }
 
       setExamLoading(true);
       try {
-        const response = await API.get("/exams/assignments", {
-          params: {
-            board: user.board,
-            className: user.studentClass,
-          },
-        });
-        setAssignedExams(response.data.data || []);
+        const [assignmentResponse, sessionResponse] = await Promise.all([
+          API.get("/exams/assignments", {
+            params: {
+              board: user.board,
+              className: user.studentClass,
+            },
+          }),
+          API.get("/teachers/student-sessions", {
+            params: {
+              board: user.board,
+              className: user.studentClass,
+            },
+          }),
+        ]);
+        setAssignedExams(assignmentResponse.data.data || []);
+        setClassSessions(sessionResponse.data.data || []);
       } catch (error) {
-        console.error("Unable to load assigned exams", error);
+        console.error("Unable to load assigned work", error);
       } finally {
         setExamLoading(false);
       }
@@ -146,6 +157,7 @@ const UserDashboard = () => {
         <nav className="flex-1 px-4 space-y-1.5">
           <SidebarItem icon={<LayoutDashboard size={20}/>} label="Dashboard" active={activeTab === "dashboard"} onClick={() => setActiveTab("dashboard")} />
           <SidebarItem icon={<BookOpen size={20}/>} label="My Exams" active={activeTab === "exams"} onClick={() => setActiveTab("exams")} />
+          <SidebarItem icon={<Calendar size={20}/>} label="Calendar" active={activeTab === "calendar"} onClick={() => setActiveTab("calendar")} />
           <SidebarItem icon={<Trophy size={20}/>} label="Performance" active={activeTab === "performance"} onClick={() => setActiveTab("performance")} />
           <SidebarItem icon={<User size={20}/>} label="Profile" active={activeTab === "profile"} onClick={() => setActiveTab("profile")} />
         </nav>
@@ -239,7 +251,7 @@ const UserDashboard = () => {
             <div className="lg:col-span-2 space-y-6">
               <div className="flex justify-between items-end mb-2 px-2">
                 <h2 className="text-xl font-black text-slate-900 tracking-tight">Upcoming Assessments</h2>
-                <button className="text-indigo-600 text-[11px] font-black uppercase tracking-widest hover:underline">View Calendar</button>
+                <button onClick={() => setActiveTab("calendar")} className="text-indigo-600 text-[11px] font-black uppercase tracking-widest hover:underline">View Calendar</button>
               </div>
               
               <div className="grid gap-4">
@@ -390,6 +402,53 @@ const UserDashboard = () => {
             <section className="bg-white rounded-3xl border border-slate-200 p-8">
               <h2 className="text-2xl font-black text-slate-900">Performance</h2>
               <p className="mt-2 text-slate-500 font-semibold">Grades and submitted exam history will appear here after teachers review submissions.</p>
+            </section>
+          )}
+
+          {activeTab === "calendar" && (
+            <section className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-black text-slate-900">Class Calendar</h2>
+                <p className="text-sm font-semibold text-slate-500">
+                  Scheduled classes for {user?.board || "your board"} / Class {user?.studentClass || "---"}
+                </p>
+              </div>
+
+              {!user?.board || !user?.studentClass ? (
+                <div className="bg-white rounded-3xl border border-slate-200 p-8 text-slate-600 font-semibold">
+                  Add your board and class in profile details to see scheduled classes.
+                </div>
+              ) : classSessions.length === 0 ? (
+                <div className="bg-white rounded-3xl border border-slate-200 p-8 text-slate-600 font-semibold">
+                  No teacher classes have been scheduled yet.
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  {classSessions.map((session) => (
+                    <div key={session._id} className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+                      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <div>
+                          <span className="inline-flex rounded-full bg-indigo-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-indigo-600">
+                            {session.status}
+                          </span>
+                          <h3 className="mt-3 text-xl font-black text-slate-900">{session.title}</h3>
+                          <p className="mt-1 text-sm font-semibold text-slate-500">
+                            {session.subject} • {new Date(session.startsAt).toLocaleString()}
+                          </p>
+                          <p className="mt-1 text-sm font-semibold text-slate-500">
+                            Teacher: {session.teacherName || session.teacherEmail}
+                          </p>
+                        </div>
+                        {session.meetingLink && (
+                          <a href={session.meetingLink} target="_blank" rel="noreferrer" className="rounded-2xl bg-indigo-600 px-5 py-3 text-center text-xs font-black uppercase tracking-widest text-white">
+                            Join Class
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
           )}
 

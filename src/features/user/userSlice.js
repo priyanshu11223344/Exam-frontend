@@ -15,6 +15,7 @@ export const fetchUser = createAsyncThunk(
             clerkUser?.primaryEmailAddress?.emailAddress || "",
           "X-Local-User-Name":
             clerkUser?.fullName || clerkUser?.firstName || "Student",
+          "X-Local-User-Role": clerkUser?.publicMetadata?.role || "user",
         },
       });
 
@@ -43,6 +44,7 @@ export const updateUser = createAsyncThunk(
               clerkUser?.primaryEmailAddress?.emailAddress || "",
             "X-Local-User-Name":
               clerkUser?.fullName || clerkUser?.firstName || "Student",
+            "X-Local-User-Role": clerkUser?.publicMetadata?.role || "user",
           },
         }
       );
