@@ -240,7 +240,7 @@ const Admin = () => {
         !row.questionNumber ||
         !row.questionPaper
       ) {
-        alert("Please fill board, subject, topic, year, paper, question number and question text.");
+        alert("Please fill board, subject, topic, year, paper, question number and at least one question paper link.");
         return;
       }
     }
@@ -695,13 +695,13 @@ const Admin = () => {
                               </td>
                               <td className="space-y-2 p-3">
                                 <input type="number" placeholder="Q#" value={row.questionNumber} onChange={(e) => updateRow(row.id, "questionNumber", e.target.value)} className="w-full rounded-lg border border-slate-200 p-2 text-sm font-bold" />
-                                <textarea placeholder="Question Text" value={row.questionPaper} onChange={(e) => updateRow(row.id, "questionPaper", e.target.value)} className="h-20 w-full resize-none rounded-lg border border-slate-200 p-2 text-sm" />
-                                <textarea placeholder="Mark Scheme" value={row.markScheme} onChange={(e) => updateRow(row.id, "markScheme", e.target.value)} className="h-20 w-full resize-none rounded-lg border border-slate-200 p-2 text-sm" />
+                                <textarea placeholder="Question paper Drive link(s), | or new line" value={row.questionPaper} onChange={(e) => updateRow(row.id, "questionPaper", e.target.value)} className="h-20 w-full resize-none rounded-lg border border-slate-200 p-2 text-sm" />
+                                <textarea placeholder="Mark scheme Drive link(s), | or new line" value={row.markScheme} onChange={(e) => updateRow(row.id, "markScheme", e.target.value)} className="h-20 w-full resize-none rounded-lg border border-slate-200 p-2 text-sm" />
                               </td>
                               <td className="space-y-2 p-3">
                                 <input type="text" placeholder="Correct Answer" value={row.correctAnswer} onChange={(e) => updateRow(row.id, "correctAnswer", e.target.value)} className="w-full rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-sm" />
-                                <textarea placeholder="Explanation" value={row.explanation} onChange={(e) => updateRow(row.id, "explanation", e.target.value)} className="h-20 w-full resize-none rounded-lg border border-slate-200 p-2 text-sm" />
-                                <textarea placeholder="Admin Comment" value={row.specialComment} onChange={(e) => updateRow(row.id, "specialComment", e.target.value)} className="h-20 w-full resize-none rounded-lg border border-slate-200 p-2 text-sm" />
+                                <textarea placeholder="Explanation link" value={row.explanation} onChange={(e) => updateRow(row.id, "explanation", e.target.value)} className="h-20 w-full resize-none rounded-lg border border-slate-200 p-2 text-sm" />
+                                <textarea placeholder="Admin comment link" value={row.specialComment} onChange={(e) => updateRow(row.id, "specialComment", e.target.value)} className="h-20 w-full resize-none rounded-lg border border-slate-200 p-2 text-sm" />
                               </td>
                               <td className="p-3 text-center">
                                 <button onClick={() => deleteRow(row.id)} className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600" aria-label="Delete row">
