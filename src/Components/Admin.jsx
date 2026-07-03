@@ -484,6 +484,12 @@ const Admin = () => {
                 >
                   <GraduationCap size={16} /> Student Dashboard
                 </Link>
+                <Link
+                  to="/TeacherDashboard"
+                  className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-3 py-2 text-sm font-bold text-white hover:bg-violet-700"
+                >
+                  <GraduationCap size={16} /> Teacher Dashboard
+                </Link>
               </div>
             </div>
 
@@ -1168,6 +1174,7 @@ const Admin = () => {
                     { to: "/home", icon: Home, title: "Practice Home", text: "Verify board, subject, topic and paper filters." },
                     { to: "/quiz", icon: BarChart3, title: "Quiz", text: "Check MCQ feature access and quiz question output." },
                     { to: "/UserDashboard", icon: GraduationCap, title: "Student Dashboard", text: "Review profile, plan and learning overview." },
+                    { to: "/TeacherDashboard", icon: GraduationCap, title: "Teacher Dashboard", text: "Open the teacher workspace for class, paper and remark workflows." },
                     { to: "/pricingPage", icon: WalletCards, title: "Pricing", text: "Inspect plans, durations and feature gates." },
                   ].map((item) => {
                     const Icon = item.icon;

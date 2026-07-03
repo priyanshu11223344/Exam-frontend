@@ -5,6 +5,7 @@ import { SignIn, SignUp } from "@clerk/react"
 import Admin from "./Components/Admin.jsx"
 import LandingPage from './Components/LandingPage.jsx';
 import ProtectedRoute from './Components/ProtectedRoutes/ProtectedRoute.jsx';
+import StudentProtected from './Components/ProtectedRoutes/StudentProtected.jsx';
 import RedirectPage from './Components/Redirect.jsx';
 import AdminProtected from "./Components/ProtectedRoutes/AdminProtected.jsx"
 import TeacherProtected from "./Components/ProtectedRoutes/TeacherProtected.jsx"
@@ -97,7 +98,7 @@ const App = () => {
           }
         />
         <Route path="/admin" element={<AdminProtected><Admin /></AdminProtected>}></Route>
-        <Route path="/UserDashboard" element={<UserDashboard />}></Route>
+        <Route path="/UserDashboard" element={<StudentProtected><UserDashboard /></StudentProtected>}></Route>
         <Route path="/TeacherDashboard" element={<TeacherProtected><TeacherDashboard /></TeacherProtected>}></Route>
         <Route path="/pricingPage" element={<PricingPage />}></Route>
       </Routes>

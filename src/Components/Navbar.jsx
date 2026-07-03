@@ -1,11 +1,13 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useClerk, useUser } from '@clerk/react';
+import { useSelector } from 'react-redux';
 import logo from  "../assets/Aurethia_logo.avif"
 const Navbar = () => {
   const navigate = useNavigate();
   const { signOut } = useClerk();
   const { isSignedIn, user } = useUser();
+  const { role: backendRole } = useSelector((state) => state.user);
 
   const handleLogout = async () => {
     sessionStorage.removeItem("filters");
@@ -46,10 +48,12 @@ const Navbar = () => {
                 return;
               }
             
-              const role = user?.publicMetadata?.role;
+              const role = user?.publicMetadata?.role || backendRole;
             
               if (role === "admin") {
                 navigate("/admin");
+              } else if (role === "teacher") {
+                navigate("/TeacherDashboard");
               } else {
                 navigate("/UserDashboard");
               }
