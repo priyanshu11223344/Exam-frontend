@@ -10,6 +10,7 @@ import {
   Plus,
   RefreshCw,
   School,
+  Trash2,
   Upload,
   Users,
 } from "lucide-react";
@@ -38,6 +39,22 @@ const initialAssignment = {
   instructions: "",
 };
 
+const emptyQuestionRow = () => ({
+  id: Date.now() + Math.random(),
+  subject: "",
+  topic: "",
+  year: "",
+  season: "",
+  paperName: "",
+  variant: "1",
+  questionNumber: "",
+  questionPaper: "",
+  markScheme: "",
+  correctAnswer: "",
+  explanation: "",
+  specialComment: "",
+});
+
 const TeacherDashboard = () => {
   const { signOut } = useAuth();
   const { user: clerkUser, isLoaded } = useUser();
@@ -48,6 +65,7 @@ const TeacherDashboard = () => {
   const [sessionForm, setSessionForm] = useState(initialSession);
   const [assignmentForm, setAssignmentForm] = useState(initialAssignment);
   const [assignmentFile, setAssignmentFile] = useState(null);
+  const [questionRows, setQuestionRows] = useState([emptyQuestionRow()]);
   const [remarks, setRemarks] = useState({});
   const [error, setError] = useState("");
 
@@ -142,6 +160,61 @@ const TeacherDashboard = () => {
       alert("Question paper published to students.");
     } catch (err) {
       alert(err.response?.data?.error || "Unable to publish question paper");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const updateQuestionRow = (id, field, value) => {
+    setQuestionRows((currentRows) =>
+      currentRows.map((row) => (row.id === id ? { ...row, [field]: value } : row))
+    );
+  };
+
+  const addQuestionRow = () => {
+    setQuestionRows((currentRows) => [...currentRows, emptyQuestionRow()]);
+  };
+
+  const deleteQuestionRow = (id) => {
+    setQuestionRows((currentRows) =>
+      currentRows.length > 1 ? currentRows.filter((row) => row.id !== id) : currentRows
+    );
+  };
+
+  const uploadQuestionBankRows = async (event) => {
+    event.preventDefault();
+
+    const cleanedRows = questionRows.map(({ id, ...row }) => ({
+      ...row,
+      board: assignment?.board || "",
+    }));
+
+    for (const row of cleanedRows) {
+      if (
+        !row.subject ||
+        !row.topic ||
+        !row.year ||
+        !row.paperName ||
+        !row.questionNumber ||
+        !row.questionPaper
+      ) {
+        alert("Fill subject, topic, year, paper, question number and at least one question paper link.");
+        return;
+      }
+    }
+
+    setSaving(true);
+    try {
+      const response = await API.post("/teachers/upload-questions", {
+        teacherEmail,
+        teacherName,
+        questions: cleanedRows,
+      });
+      const { inserted = 0, updated = 0, skipped = 0 } = response.data || {};
+      setQuestionRows([emptyQuestionRow()]);
+      alert(`${inserted} inserted, ${updated} updated, ${skipped} skipped`);
+    } catch (err) {
+      alert(err.response?.data?.error || "Unable to upload questions");
     } finally {
       setSaving(false);
     }
@@ -312,37 +385,117 @@ const TeacherDashboard = () => {
           )}
 
           {activeTab === "papers" && (
-            <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="font-black">Add Question Paper</h3>
-              <p className="mt-1 text-sm font-semibold text-slate-500">
-                Publish a custom question paper or quiz to students in one of your assigned classes.
-              </p>
+            <section className="space-y-5">
+              <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h3 className="font-black">Upload To Question Bank</h3>
+                <p className="mt-1 text-sm font-semibold text-slate-500">
+                  Add questions to the main system for your assigned board. Drive links can be separated with | or a new line.
+                </p>
 
-              <form onSubmit={publishAssignment} className="mt-5 grid gap-4 lg:grid-cols-3">
-                <Input label="Title" value={assignmentForm.title} onChange={(value) => setAssignmentForm({ ...assignmentForm, title: value })} />
-                <Select label="Type" value={assignmentForm.type} onChange={(value) => setAssignmentForm({ ...assignmentForm, type: value })} options={[["paper", "Custom paper"], ["quiz", "Quiz"]]} />
-                <Input label="Duration minutes" type="number" value={assignmentForm.durationMinutes} onChange={(value) => setAssignmentForm({ ...assignmentForm, durationMinutes: value })} />
-                <Select
-                  label="Class"
-                  value={assignmentForm.className}
-                  onChange={(value) => applyClassToForm(value, setAssignmentForm)}
-                  options={classOptions.map((entry) => [entry.className, `Grade ${entry.className}`])}
-                />
-                <Input label="Board" value={assignmentForm.board} onChange={(value) => setAssignmentForm({ ...assignmentForm, board: value })} />
-                <Input label="Subject" value={assignmentForm.subject} onChange={(value) => setAssignmentForm({ ...assignmentForm, subject: value })} />
-                <Input label="Due date" type="datetime-local" value={assignmentForm.dueAt} onChange={(value) => setAssignmentForm({ ...assignmentForm, dueAt: value })} />
-                <label className="space-y-1 lg:col-span-2">
-                  <span className="text-xs font-black uppercase tracking-wide text-slate-500">Question paper file</span>
-                  <input type="file" accept=".pdf,image/*" onChange={(event) => setAssignmentFile(event.target.files?.[0] || null)} className="w-full rounded-lg border border-slate-200 p-3 text-sm" />
-                </label>
-                <label className="space-y-1 lg:col-span-3">
-                  <span className="text-xs font-black uppercase tracking-wide text-slate-500">Instructions</span>
-                  <textarea value={assignmentForm.instructions} onChange={(event) => setAssignmentForm({ ...assignmentForm, instructions: event.target.value })} className="h-24 w-full rounded-lg border border-slate-200 p-3 text-sm" />
-                </label>
-                <button disabled={saving} className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-5 py-3 text-sm font-black text-white disabled:bg-slate-300">
-                  <Upload size={16} /> {saving ? "Publishing..." : "Publish"}
-                </button>
-              </form>
+                <form onSubmit={uploadQuestionBankRows} className="mt-5 space-y-4">
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[1180px] text-left">
+                      <thead className="bg-slate-50 text-xs font-black uppercase tracking-wide text-slate-500">
+                        <tr>
+                          <th className="p-3">Category</th>
+                          <th className="p-3">Paper Details</th>
+                          <th className="p-3">Question & Scheme</th>
+                          <th className="p-3">Analysis</th>
+                          <th className="p-3 text-center">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {questionRows.map((row) => (
+                          <tr key={row.id} className="align-top">
+                            <td className="space-y-2 p-3">
+                              <input value={assignment?.board || ""} readOnly className="w-full rounded-lg border border-slate-200 bg-slate-50 p-2 text-sm font-bold text-slate-500" />
+                              <input placeholder="Subject" value={row.subject} onChange={(event) => updateQuestionRow(row.id, "subject", event.target.value)} className="w-full rounded-lg border border-slate-200 p-2 text-sm" />
+                              <input placeholder="Topic" value={row.topic} onChange={(event) => updateQuestionRow(row.id, "topic", event.target.value)} className="w-full rounded-lg border border-slate-200 p-2 text-sm" />
+                            </td>
+                            <td className="space-y-2 p-3">
+                              <input type="number" placeholder="Year" value={row.year} onChange={(event) => updateQuestionRow(row.id, "year", event.target.value)} className="w-full rounded-lg border border-slate-200 p-2 text-sm" />
+                              <select value={row.season} onChange={(event) => updateQuestionRow(row.id, "season", event.target.value)} className="w-full rounded-lg border border-slate-200 p-2 text-sm">
+                                <option value="">Season</option>
+                                <option value="Summer">Summer</option>
+                                <option value="Winter">Winter</option>
+                                <option value="Spring">Spring</option>
+                                <option value="Fall">Fall</option>
+                              </select>
+                              <div className="grid grid-cols-[1fr_72px] gap-2">
+                                <select value={row.paperName} onChange={(event) => updateQuestionRow(row.id, "paperName", event.target.value)} className="rounded-lg border border-slate-200 p-2 text-sm">
+                                  <option value="">Paper</option>
+                                  {["1", "2", "1(core)", "2(extended)", "3", "4", "5", "6"].map((paper) => <option key={paper} value={paper}>{paper}</option>)}
+                                </select>
+                                <select value={row.variant} onChange={(event) => updateQuestionRow(row.id, "variant", event.target.value)} className="rounded-lg border border-slate-200 p-2 text-sm">
+                                  <option value="1">V1</option>
+                                  <option value="2">V2</option>
+                                  <option value="3">V3</option>
+                                </select>
+                              </div>
+                            </td>
+                            <td className="space-y-2 p-3">
+                              <input type="number" placeholder="Q#" value={row.questionNumber} onChange={(event) => updateQuestionRow(row.id, "questionNumber", event.target.value)} className="w-full rounded-lg border border-slate-200 p-2 text-sm font-bold" />
+                              <textarea placeholder="Question paper Drive link(s), | or new line" value={row.questionPaper} onChange={(event) => updateQuestionRow(row.id, "questionPaper", event.target.value)} className="h-20 w-full resize-none rounded-lg border border-slate-200 p-2 text-sm" />
+                              <textarea placeholder="Mark scheme Drive link(s), | or new line" value={row.markScheme} onChange={(event) => updateQuestionRow(row.id, "markScheme", event.target.value)} className="h-20 w-full resize-none rounded-lg border border-slate-200 p-2 text-sm" />
+                            </td>
+                            <td className="space-y-2 p-3">
+                              <input placeholder="Correct Answer" value={row.correctAnswer} onChange={(event) => updateQuestionRow(row.id, "correctAnswer", event.target.value)} className="w-full rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-sm" />
+                              <textarea placeholder="Explanation link" value={row.explanation} onChange={(event) => updateQuestionRow(row.id, "explanation", event.target.value)} className="h-20 w-full resize-none rounded-lg border border-slate-200 p-2 text-sm" />
+                              <textarea placeholder="Admin comment link" value={row.specialComment} onChange={(event) => updateQuestionRow(row.id, "specialComment", event.target.value)} className="h-20 w-full resize-none rounded-lg border border-slate-200 p-2 text-sm" />
+                            </td>
+                            <td className="p-3 text-center">
+                              <button type="button" onClick={() => deleteQuestionRow(row.id)} className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600" aria-label="Delete row">
+                                <Trash2 size={18} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="flex flex-col gap-3 border-t border-slate-200 pt-4 md:flex-row md:items-center md:justify-between">
+                    <button type="button" onClick={addQuestionRow} className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700">
+                      <Plus size={18} /> Add Row
+                    </button>
+                    <button disabled={saving || !assignment} className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-950 px-6 py-3 text-sm font-black text-white disabled:bg-slate-300">
+                      <Upload size={16} /> {saving ? "Uploading..." : "Upload To System"}
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h3 className="font-black">Publish Assignment To Students</h3>
+                <p className="mt-1 text-sm font-semibold text-slate-500">
+                  Publish a custom question paper or quiz to students in one of your assigned classes.
+                </p>
+
+                <form onSubmit={publishAssignment} className="mt-5 grid gap-4 lg:grid-cols-3">
+                  <Input label="Title" value={assignmentForm.title} onChange={(value) => setAssignmentForm({ ...assignmentForm, title: value })} />
+                  <Select label="Type" value={assignmentForm.type} onChange={(value) => setAssignmentForm({ ...assignmentForm, type: value })} options={[["paper", "Custom paper"], ["quiz", "Quiz"]]} />
+                  <Input label="Duration minutes" type="number" value={assignmentForm.durationMinutes} onChange={(value) => setAssignmentForm({ ...assignmentForm, durationMinutes: value })} />
+                  <Select
+                    label="Class"
+                    value={assignmentForm.className}
+                    onChange={(value) => applyClassToForm(value, setAssignmentForm)}
+                    options={classOptions.map((entry) => [entry.className, `Grade ${entry.className}`])}
+                  />
+                  <Input label="Board" value={assignmentForm.board} onChange={(value) => setAssignmentForm({ ...assignmentForm, board: value })} />
+                  <Input label="Subject" value={assignmentForm.subject} onChange={(value) => setAssignmentForm({ ...assignmentForm, subject: value })} />
+                  <Input label="Due date" type="datetime-local" value={assignmentForm.dueAt} onChange={(value) => setAssignmentForm({ ...assignmentForm, dueAt: value })} />
+                  <label className="space-y-1 lg:col-span-2">
+                    <span className="text-xs font-black uppercase tracking-wide text-slate-500">Question paper file</span>
+                    <input type="file" accept=".pdf,image/*" onChange={(event) => setAssignmentFile(event.target.files?.[0] || null)} className="w-full rounded-lg border border-slate-200 p-3 text-sm" />
+                  </label>
+                  <label className="space-y-1 lg:col-span-3">
+                    <span className="text-xs font-black uppercase tracking-wide text-slate-500">Instructions</span>
+                    <textarea value={assignmentForm.instructions} onChange={(event) => setAssignmentForm({ ...assignmentForm, instructions: event.target.value })} className="h-24 w-full rounded-lg border border-slate-200 p-3 text-sm" />
+                  </label>
+                  <button disabled={saving} className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-5 py-3 text-sm font-black text-white disabled:bg-slate-300">
+                    <Upload size={16} /> {saving ? "Publishing..." : "Publish"}
+                  </button>
+                </form>
+              </div>
             </section>
           )}
 
