@@ -12,6 +12,10 @@ const Sidebar = () => {
   }
   const { features, role } = useSelector((state) => state.user);
   const hasQuizAccess = role === "admin" || features.includes("mcq");
+  const dashboardRoute =
+    role === "teacher" ? "/TeacherDashboard" : role === "admin" ? "/admin" : "/UserDashboard";
+  const dashboardLabel =
+    role === "teacher" ? "Teacher Dashboard" : role === "admin" ? "Admin Dashboard" : "Student Dashboard";
   return (
     <aside className="fixed top-0 left-0 w-60 h-screen bg-indigo-700 text-white p-6 overflow-y-auto">
 
@@ -20,6 +24,18 @@ const Sidebar = () => {
         <span className="text-2xl font-bold bg-clip-text text-transparent bg-white">
           Aurethia
         </span>
+      </div>
+
+      {/* Workspace */}
+      <div className="mb-8">
+        <h3 className="text-sm font-semibold text-blue-200 mb-3 uppercase">
+          Workspace
+        </h3>
+        <ul className="space-y-2">
+          <li onClick={() => navigate(dashboardRoute)} className="hover:bg-blue-800 p-2 rounded cursor-pointer">
+            {dashboardLabel}
+          </li>
+        </ul>
       </div>
 
       {/* Past Papers */}

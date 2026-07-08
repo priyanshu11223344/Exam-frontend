@@ -1,22 +1,23 @@
 import { useUser } from "@clerk/react";
+import { useSelector } from "react-redux";
 import { Navigate } from "react-router-dom";
 
 const AdminProtected = ({ children }) => {
   const { isSignedIn, isLoaded, user } = useUser();
+  const { user: backendUser, role: backendRole, loading } = useSelector((state) => state.user);
 
-  if (!isLoaded) return <div>Loading...</div>;
+  if (!isLoaded || loading) return <div>Loading...</div>;
 
   // ❌ Not logged in
   if (!isSignedIn) {
     return <Navigate to="/login" />;
   }
 
-  const role = user?.publicMetadata?.role;
-
-  // 🔥 Wait for role (IMPORTANT)
-  if (!role) {
+  if (!user?.publicMetadata?.role && !backendUser) {
     return <div>Checking permissions...</div>;
   }
+
+  const role = user?.publicMetadata?.role || backendRole || "user";
 
   // ❌ Not admin
   if (role !== "admin") {
