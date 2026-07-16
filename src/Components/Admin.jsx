@@ -18,12 +18,14 @@ import {
   MessageSquareText,
   Plus,
   RefreshCw,
+  Search,
   Settings,
   ShieldCheck,
   Trash2,
   Upload,
   Users,
   WalletCards,
+  X,
 } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -112,6 +114,20 @@ const Admin = () => {
   const [assignmentSubjects, setAssignmentSubjects] = useState([]);
   const [assignmentSaving, setAssignmentSaving] = useState(false);
   const [adminUsers, setAdminUsers] = useState([]);
+  const [studentSearch, setStudentSearch] = useState("");
+  const [studentFilters, setStudentFilters] = useState({ board: "", className: "", planName: "" });
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [studentDrawerOpen, setStudentDrawerOpen] = useState(false);
+  const [studentForm, setStudentForm] = useState({
+    name: "",
+    school: "",
+    board: "",
+    studentClass: "",
+    age: "",
+    planName: "",
+    planExpiry: "",
+  });
+  const [studentSaving, setStudentSaving] = useState(false);
   const [teacherData, setTeacherData] = useState({ teachers: [], assignments: [] });
   const [teacherRemarks, setTeacherRemarks] = useState([]);
   const [teacherSaving, setTeacherSaving] = useState(false);
@@ -149,6 +165,44 @@ const Admin = () => {
     () => Array.from({ length: currentYear - 2009 }, (_, index) => String(currentYear - index)),
     [currentYear]
   );
+  const allStudents = useMemo(
+    () => adminUsers.filter((user) => user.role !== "admin" && user.role !== "teacher"),
+    [adminUsers]
+  );
+  const studentBoardOptions = useMemo(
+    () =>
+      Array.from(new Set(allStudents.map((student) => student.board).filter(Boolean))).sort((a, b) =>
+        a.localeCompare(b)
+      ),
+    [allStudents]
+  );
+  const studentClassOptions = useMemo(
+    () =>
+      Array.from(new Set(allStudents.map((student) => student.studentClass).filter(Boolean))).sort((a, b) =>
+        String(a).localeCompare(String(b), undefined, { numeric: true })
+      ),
+    [allStudents]
+  );
+  const studentPlanOptions = useMemo(
+    () =>
+      Array.from(new Set(allStudents.map((student) => student.planName || "Free"))).sort((a, b) =>
+        a.localeCompare(b)
+      ),
+    [allStudents]
+  );
+  const filteredStudents = useMemo(() => {
+    const query = studentSearch.trim().toLowerCase();
+    return allStudents
+      .filter((student) => {
+        if (!query) return true;
+        return [student.name, student.email, student.school, student.board, student.studentClass, student.planName]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(query));
+      })
+      .filter((student) => !studentFilters.board || student.board === studentFilters.board)
+      .filter((student) => !studentFilters.className || String(student.studentClass || "") === String(studentFilters.className))
+      .filter((student) => !studentFilters.planName || (student.planName || "Free") === studentFilters.planName);
+  }, [allStudents, studentFilters, studentSearch]);
 
   const assignmentClassOptions = useMemo(() => {
     const classes = new Set();
@@ -547,6 +601,57 @@ const Admin = () => {
       alert(error.response?.data?.error || "Unable to assign teacher");
     } finally {
       setTeacherSaving(false);
+    }
+  };
+
+  const openStudentDrawer = (student) => {
+    setSelectedStudent(student);
+    setStudentForm({
+      name: student.name || "",
+      school: student.school || "",
+      board: student.board || "",
+      studentClass: student.studentClass || "",
+      age: student.age || "",
+      planName: student.planName || "Free",
+      planExpiry: student.planExpiry ? new Date(student.planExpiry).toISOString().slice(0, 10) : "",
+    });
+    setStudentDrawerOpen(false);
+    window.requestAnimationFrame(() => setStudentDrawerOpen(true));
+  };
+
+  const closeStudentDrawer = () => {
+    setStudentDrawerOpen(false);
+    window.setTimeout(() => {
+      setSelectedStudent(null);
+    }, 200);
+  };
+
+  const saveStudentDetails = async (event) => {
+    event.preventDefault();
+    if (!selectedStudent?._id) return;
+
+    setStudentSaving(true);
+    try {
+      const response = await API.put(`/admin/users/${selectedStudent._id}`, studentForm);
+      const updatedStudent = response.data.data;
+      setAdminUsers((users) =>
+        users.map((user) => (user._id === updatedStudent._id ? updatedStudent : user))
+      );
+      setSummary((current) => {
+        if (!current?.recentUsers) return current;
+        return {
+          ...current,
+          recentUsers: current.recentUsers.map((user) =>
+            user._id === updatedStudent._id ? updatedStudent : user
+          ),
+        };
+      });
+      setSelectedStudent(updatedStudent);
+      alert("Student details updated");
+    } catch (error) {
+      alert(error.response?.data?.error || "Unable to update student");
+    } finally {
+      setStudentSaving(false);
     }
   };
 
@@ -1209,38 +1314,88 @@ const Admin = () => {
 
             {activeSection === "students" && (
               <section className="space-y-6">
-                <div>
-                  <h3 className="text-xl font-black">Students</h3>
-                  <p className="text-sm text-slate-500">Recent learners, profile details and subscription status</p>
+                <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+                  <div>
+                    <h3 className="text-xl font-black">Students</h3>
+                    <p className="text-sm text-slate-500">Learners, profile details and subscription status</p>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-4 xl:w-[920px]">
+                    <label className="relative md:col-span-1">
+                      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        value={studentSearch}
+                        onChange={(event) => setStudentSearch(event.target.value)}
+                        placeholder="Search students"
+                        className="w-full rounded-lg border border-slate-200 bg-white py-3 pl-9 pr-3 text-sm outline-none focus:border-indigo-400"
+                      />
+                    </label>
+                    <SearchableSelect
+                      value={studentFilters.board}
+                      onChange={(value) => setStudentFilters((current) => ({ ...current, board: value }))}
+                      emptyOption={["", "All Boards"]}
+                      options={studentBoardOptions.map((board) => [board, board])}
+                    />
+                    <SearchableSelect
+                      value={studentFilters.className}
+                      onChange={(value) => setStudentFilters((current) => ({ ...current, className: value }))}
+                      emptyOption={["", "All Classes"]}
+                      options={studentClassOptions.map((className) => [className, `Grade ${className}`])}
+                    />
+                    <SearchableSelect
+                      value={studentFilters.planName}
+                      onChange={(value) => setStudentFilters((current) => ({ ...current, planName: value }))}
+                      emptyOption={["", "All Plans"]}
+                      options={studentPlanOptions.map((planName) => [planName, planName])}
+                    />
+                  </div>
                 </div>
                 <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
                   <div className="overflow-x-auto">
-                    <table className="w-full min-w-[760px] text-left">
+                    <table className="w-full min-w-[900px] text-left">
                       <thead className="border-b border-slate-200 bg-slate-50 text-xs font-black uppercase tracking-wide text-slate-500">
                         <tr>
                           <th className="p-3">Student</th>
+                          <th className="p-3">Board</th>
                           <th className="p-3">School</th>
                           <th className="p-3">Class</th>
                           <th className="p-3">Plan</th>
                           <th className="p-3">Updated</th>
+                          <th className="p-3 text-right">Action</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {recentUsers.length === 0 && (
-                          <tr><td className="p-4 text-sm text-slate-500" colSpan="5">No users found.</td></tr>
+                        {filteredStudents.length === 0 && (
+                          <tr><td className="p-4 text-sm text-slate-500" colSpan="7">No students found.</td></tr>
                         )}
-                        {recentUsers.map((user) => (
-                          <tr key={user._id}>
+                        {filteredStudents.map((user) => (
+                          <tr
+                            key={user._id}
+                            onClick={() => openStudentDrawer(user)}
+                            className="cursor-pointer transition hover:bg-slate-50"
+                          >
                             <td className="p-3">
                               <p className="font-bold">{user.name || "Student"}</p>
                               <p className="text-sm text-slate-500">{user.email}</p>
                             </td>
+                            <td className="p-3 text-sm text-slate-600">{user.board || "Not set"}</td>
                             <td className="p-3 text-sm text-slate-600">{user.school || "Not set"}</td>
                             <td className="p-3 text-sm text-slate-600">{user.studentClass || "Not set"}</td>
                             <td className="p-3">
                               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700">{user.planName || "Free"}</span>
                             </td>
                             <td className="p-3 text-sm text-slate-600">{formatDate(user.updatedAt)}</td>
+                            <td className="p-3 text-right">
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  openStudentDrawer(user);
+                                }}
+                                className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-black text-slate-700 hover:bg-slate-100"
+                              >
+                                Edit
+                              </button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -1319,6 +1474,137 @@ const Admin = () => {
           </div>
         </main>
       </div>
+
+      {selectedStudent && (
+        <div
+          className={`fixed inset-0 z-40 bg-slate-950/40 transition-opacity duration-200 ${
+            studentDrawerOpen ? "opacity-100" : "opacity-0"
+          }`}
+          onClick={closeStudentDrawer}
+        >
+          <aside
+            className={`ml-auto flex h-full w-full transform flex-col bg-white shadow-2xl transition-transform duration-200 md:w-[70vw] ${
+              studentDrawerOpen ? "translate-x-0" : "translate-x-full"
+            }`}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-6">
+              <div>
+                <p className="text-xs font-black uppercase tracking-wide text-indigo-600">Student Profile</p>
+                <h3 className="mt-1 text-2xl font-black">{selectedStudent.name || "Student"}</h3>
+                <p className="text-sm font-semibold text-slate-500">{selectedStudent.email}</p>
+              </div>
+              <button
+                type="button"
+                onClick={closeStudentDrawer}
+                className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:bg-slate-50"
+                aria-label="Close student details"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="rounded-lg bg-slate-50 p-4">
+                  <p className="text-xs font-black uppercase tracking-wide text-slate-500">Plan</p>
+                  <p className="mt-2 text-lg font-black">{selectedStudent.planName || "Free"}</p>
+                </div>
+                <div className="rounded-lg bg-slate-50 p-4">
+                  <p className="text-xs font-black uppercase tracking-wide text-slate-500">Board</p>
+                  <p className="mt-2 text-lg font-black">{selectedStudent.board || "Not set"}</p>
+                </div>
+                <div className="rounded-lg bg-slate-50 p-4">
+                  <p className="text-xs font-black uppercase tracking-wide text-slate-500">Class</p>
+                  <p className="mt-2 text-lg font-black">{selectedStudent.studentClass || "Not set"}</p>
+                </div>
+              </div>
+
+              <form onSubmit={saveStudentDetails} className="mt-6 grid gap-4 md:grid-cols-2">
+                <label className="space-y-1">
+                  <span className="text-xs font-black uppercase tracking-wide text-slate-500">Name</span>
+                  <input
+                    value={studentForm.name}
+                    onChange={(event) => setStudentForm({ ...studentForm, name: event.target.value })}
+                    className="w-full rounded-lg border border-slate-200 p-3 text-sm outline-none focus:border-indigo-400"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-xs font-black uppercase tracking-wide text-slate-500">Email</span>
+                  <input
+                    value={selectedStudent.email || ""}
+                    readOnly
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-500"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-xs font-black uppercase tracking-wide text-slate-500">School</span>
+                  <input
+                    value={studentForm.school}
+                    onChange={(event) => setStudentForm({ ...studentForm, school: event.target.value })}
+                    className="w-full rounded-lg border border-slate-200 p-3 text-sm outline-none focus:border-indigo-400"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-xs font-black uppercase tracking-wide text-slate-500">Age</span>
+                  <input
+                    type="number"
+                    value={studentForm.age}
+                    onChange={(event) => setStudentForm({ ...studentForm, age: event.target.value })}
+                    className="w-full rounded-lg border border-slate-200 p-3 text-sm outline-none focus:border-indigo-400"
+                  />
+                </label>
+                <SearchableSelect
+                  label="Board"
+                  value={studentForm.board}
+                  onChange={(value) => setStudentForm({ ...studentForm, board: value })}
+                  placeholder="Select Board"
+                  options={boards.map((board) => [board.name, board.name])}
+                />
+                <label className="space-y-1">
+                  <span className="text-xs font-black uppercase tracking-wide text-slate-500">Class</span>
+                  <input
+                    value={studentForm.studentClass}
+                    onChange={(event) => setStudentForm({ ...studentForm, studentClass: event.target.value })}
+                    className="w-full rounded-lg border border-slate-200 p-3 text-sm outline-none focus:border-indigo-400"
+                  />
+                </label>
+                <SearchableSelect
+                  label="Plan"
+                  value={studentForm.planName}
+                  onChange={(value) => setStudentForm({ ...studentForm, planName: value })}
+                  options={[["Free", "Free"], ...plans.map((plan) => [plan.name, plan.name])]}
+                />
+                <label className="space-y-1">
+                  <span className="text-xs font-black uppercase tracking-wide text-slate-500">Plan Expiry</span>
+                  <input
+                    type="date"
+                    value={studentForm.planExpiry}
+                    onChange={(event) => setStudentForm({ ...studentForm, planExpiry: event.target.value })}
+                    className="w-full rounded-lg border border-slate-200 p-3 text-sm outline-none focus:border-indigo-400"
+                  />
+                </label>
+                <div className="flex justify-end gap-3 border-t border-slate-200 pt-5 md:col-span-2">
+                  <button
+                    type="button"
+                    onClick={closeStudentDrawer}
+                    className="rounded-lg border border-slate-200 px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={studentSaving}
+                    className="rounded-lg bg-slate-950 px-5 py-3 text-sm font-black text-white disabled:bg-slate-300"
+                  >
+                    {studentSaving ? "Saving..." : "Save Changes"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </aside>
+        </div>
+      )}
 
       {activeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
