@@ -18,6 +18,7 @@ import { useAuth, useUser } from "@clerk/react";
 import { useNavigate, useParams } from "react-router-dom";
 import API from "../api/axios";
 import Logo from "../assets/Aurethia_logo.avif";
+import SearchableSelect from "./SearchableSelect";
 
 const TEACHER_TAB_IDS = ["overview", "papers", "calendar", "remarks"];
 
@@ -457,23 +458,24 @@ const TeacherDashboard = () => {
                             </td>
                             <td className="space-y-2 p-3">
                               <input type="number" placeholder="Year" value={row.year} onChange={(event) => updateQuestionRow(row.id, "year", event.target.value)} className="w-full rounded-lg border border-slate-200 p-2 text-sm" />
-                              <select value={row.season} onChange={(event) => updateQuestionRow(row.id, "season", event.target.value)} className="w-full rounded-lg border border-slate-200 p-2 text-sm">
-                                <option value="">Season</option>
-                                <option value="Summer">Summer</option>
-                                <option value="Winter">Winter</option>
-                                <option value="Spring">Spring</option>
-                                <option value="Fall">Fall</option>
-                              </select>
+                              <SearchableSelect
+                                value={row.season}
+                                onChange={(value) => updateQuestionRow(row.id, "season", value)}
+                                placeholder="Season"
+                                options={["Summer", "Winter", "Spring", "Fall"].map((season) => [season, season])}
+                              />
                               <div className="grid grid-cols-[1fr_72px] gap-2">
-                                <select value={row.paperName} onChange={(event) => updateQuestionRow(row.id, "paperName", event.target.value)} className="rounded-lg border border-slate-200 p-2 text-sm">
-                                  <option value="">Paper</option>
-                                  {["1", "2", "1(core)", "2(extended)", "3", "4", "5", "6"].map((paper) => <option key={paper} value={paper}>{paper}</option>)}
-                                </select>
-                                <select value={row.variant} onChange={(event) => updateQuestionRow(row.id, "variant", event.target.value)} className="rounded-lg border border-slate-200 p-2 text-sm">
-                                  <option value="1">V1</option>
-                                  <option value="2">V2</option>
-                                  <option value="3">V3</option>
-                                </select>
+                                <SearchableSelect
+                                  value={row.paperName}
+                                  onChange={(value) => updateQuestionRow(row.id, "paperName", value)}
+                                  placeholder="Paper"
+                                  options={["1", "2", "1(core)", "2(extended)", "3", "4", "5", "6"].map((paper) => [paper, paper])}
+                                />
+                                <SearchableSelect
+                                  value={row.variant}
+                                  onChange={(value) => updateQuestionRow(row.id, "variant", value)}
+                                  options={[["1", "V1"], ["2", "V2"], ["3", "V3"]]}
+                                />
                               </div>
                             </td>
                             <td className="space-y-2 p-3">
@@ -673,15 +675,14 @@ const Input = ({ label, value, onChange, type = "text" }) => (
 );
 
 const Select = ({ label, value, onChange, options, emptyLabel = "Select" }) => (
-  <label className="space-y-1">
-    <span className="text-xs font-black uppercase tracking-wide text-slate-500">{label}</span>
-    <select value={value} onChange={(event) => onChange(event.target.value)} className="w-full rounded-lg border border-slate-200 p-3 text-sm">
-      <option value="">{emptyLabel}</option>
-      {options.map(([optionValue, optionLabel]) => (
-        <option key={optionValue} value={optionValue}>{optionLabel}</option>
-      ))}
-    </select>
-  </label>
+  <SearchableSelect
+    label={label}
+    value={value}
+    onChange={onChange}
+    placeholder={emptyLabel}
+    emptyOption={["", emptyLabel]}
+    options={options}
+  />
 );
 
 const SessionList = ({ sessions }) => (

@@ -28,6 +28,7 @@ import {
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import API from "../api/axios";
+import SearchableSelect from "./SearchableSelect";
 import { fetchBoards, createBoard } from "../features/board/boardSlice";
 import { fetchSubjects, clearSubjects, createSubject } from "../features/subject/subjectSlice";
 import { fetchTopics, createTopic } from "../features/topic/topicSlice";
@@ -819,38 +820,21 @@ const Admin = () => {
                           {rows.map((row) => (
                             <tr key={row.id} className="align-top">
                               <td className="space-y-2 p-3">
-                                <select value={row.board} onChange={(e) => updateRow(row.id, "board", e.target.value)} className="w-full rounded-lg border border-slate-200 p-2 text-sm">
-                                  <option value="">Select Board</option>
-                                  {boards.map((board) => <option key={board._id} value={board.name}>{board.name}</option>)}
-                                </select>
-                                <select value={row.subject} onChange={(e) => updateRow(row.id, "subject", e.target.value)} className="w-full rounded-lg border border-slate-200 p-2 text-sm">
-                                  <option value="">Select Subject</option>
-                                  {row.subjects.map((subject) => <option key={subject._id} value={subject.name}>{subject.name}</option>)}
-                                </select>
-                                <select value={row.topic} onChange={(e) => updateRow(row.id, "topic", e.target.value)} className="w-full rounded-lg border border-slate-200 p-2 text-sm">
-                                  <option value="">Select Topic</option>
-                                  {row.topics.map((topic) => <option key={topic._id} value={topic.name}>{topic.name}</option>)}
-                                </select>
+                                <SearchableSelect value={row.board} onChange={(value) => updateRow(row.id, "board", value)} placeholder="Select Board" options={boards.map((board) => [board.name, board.name])} />
+                                <SearchableSelect value={row.subject} onChange={(value) => updateRow(row.id, "subject", value)} placeholder="Select Subject" options={row.subjects.map((subject) => [subject.name, subject.name])} />
+                                <SearchableSelect value={row.topic} onChange={(value) => updateRow(row.id, "topic", value)} placeholder="Select Topic" options={row.topics.map((topic) => [topic.name, topic.name])} />
                               </td>
                               <td className="space-y-2 p-3">
                                 <input type="number" placeholder="Year" value={row.year} onChange={(e) => updateRow(row.id, "year", e.target.value)} className="w-full rounded-lg border border-slate-200 p-2 text-sm" />
-                                <select value={row.season} onChange={(e) => updateRow(row.id, "season", e.target.value)} className="w-full rounded-lg border border-slate-200 p-2 text-sm">
-                                  <option value="">Season</option>
-                                  <option value="Summer">Summer</option>
-                                  <option value="Winter">Winter</option>
-                                  <option value="Spring">Spring</option>
-                                  <option value="Fall">Fall</option>
-                                </select>
+                                <SearchableSelect
+                                  value={row.season}
+                                  onChange={(value) => updateRow(row.id, "season", value)}
+                                  placeholder="Season"
+                                  options={["Summer", "Winter", "Spring", "Fall"].map((season) => [season, season])}
+                                />
                                 <div className="grid grid-cols-[1fr_72px] gap-2">
-                                  <select value={row.paperName} onChange={(e) => updateRow(row.id, "paperName", e.target.value)} className="rounded-lg border border-slate-200 p-2 text-sm">
-                                    <option value="">Paper</option>
-                                    {["1", "2", "1(core)", "2(extended)", "3", "4", "5", "6"].map((paper) => <option key={paper} value={paper}>{paper}</option>)}
-                                  </select>
-                                  <select value={row.variant} onChange={(e) => updateRow(row.id, "variant", e.target.value)} className="rounded-lg border border-slate-200 p-2 text-sm">
-                                    <option value="1">V1</option>
-                                    <option value="2">V2</option>
-                                    <option value="3">V3</option>
-                                  </select>
+                                  <SearchableSelect value={row.paperName} onChange={(value) => updateRow(row.id, "paperName", value)} placeholder="Paper" options={["1", "2", "1(core)", "2(extended)", "3", "4", "5", "6"].map((paper) => [paper, paper])} />
+                                  <SearchableSelect value={row.variant} onChange={(value) => updateRow(row.id, "variant", value)} options={[["1", "V1"], ["2", "V2"], ["3", "V3"]]} />
                                 </div>
                               </td>
                               <td className="space-y-2 p-3">
@@ -942,17 +926,15 @@ const Admin = () => {
                       />
                     </label>
 
-                    <label className="space-y-1">
-                      <span className="text-xs font-black uppercase tracking-wide text-slate-500">Type</span>
-                      <select
-                        value={assignmentForm.type}
-                        onChange={(event) => setAssignmentForm({ ...assignmentForm, type: event.target.value })}
-                        className="w-full rounded-lg border border-slate-200 p-3 text-sm"
-                      >
-                        <option value="quiz">Quiz from question bank</option>
-                        <option value="paper">Custom question paper</option>
-                      </select>
-                    </label>
+                    <SearchableSelect
+                      label="Type"
+                      value={assignmentForm.type}
+                      onChange={(value) => setAssignmentForm({ ...assignmentForm, type: value })}
+                      options={[
+                        ["quiz", "Quiz from question bank"],
+                        ["paper", "Custom question paper"],
+                      ]}
+                    />
 
                     <label className="space-y-1">
                       <span className="text-xs font-black uppercase tracking-wide text-slate-500">Duration</span>
@@ -965,63 +947,40 @@ const Admin = () => {
                       />
                     </label>
 
-                    <label className="space-y-1">
-                      <span className="text-xs font-black uppercase tracking-wide text-slate-500">Board</span>
-                      <select
-                        value={assignmentForm.board}
-                        onChange={(event) => handleAssignmentBoardChange(event.target.value)}
-                        className="w-full rounded-lg border border-slate-200 p-3 text-sm"
-                      >
-                        <option value="">Select Board</option>
-                        {boards.map((board) => (
-                          <option key={board._id} value={board.name}>{board.name}</option>
-                        ))}
-                      </select>
-                    </label>
+                    <SearchableSelect
+                      label="Board"
+                      value={assignmentForm.board}
+                      onChange={handleAssignmentBoardChange}
+                      placeholder="Select Board"
+                      options={boards.map((board) => [board.name, board.name])}
+                    />
 
-                    <label className="space-y-1">
-                      <span className="text-xs font-black uppercase tracking-wide text-slate-500">Class</span>
-                      <select
-                        value={assignmentForm.className}
-                        onChange={(event) => handleAssignmentClassChange(event.target.value)}
-                        className="w-full rounded-lg border border-slate-200 p-3 text-sm"
-                      >
-                        <option value="">Select Class</option>
-                        {assignmentClassOptions.map((className) => (
-                          <option key={className} value={className}>Grade {className}</option>
-                        ))}
-                      </select>
-                    </label>
+                    <SearchableSelect
+                      label="Class"
+                      value={assignmentForm.className}
+                      onChange={handleAssignmentClassChange}
+                      placeholder="Select Class"
+                      options={assignmentClassOptions.map((className) => [className, `Grade ${className}`])}
+                    />
 
-                    <label className="space-y-1">
-                      <span className="text-xs font-black uppercase tracking-wide text-slate-500">Subject</span>
-                      <select
-                        value={assignmentForm.subject}
-                        onChange={(event) => setAssignmentForm({ ...assignmentForm, subject: event.target.value, year: "" })}
-                        className="w-full rounded-lg border border-slate-200 p-3 text-sm"
-                      >
-                        <option value="">Select Subject</option>
-                        {assignmentSubjectOptions.map((subject) => (
-                          <option key={subject._id || subject.name} value={subject.name}>{subject.name}</option>
-                        ))}
-                      </select>
-                    </label>
+                    <SearchableSelect
+                      label="Subject"
+                      value={assignmentForm.subject}
+                      onChange={(value) => setAssignmentForm({ ...assignmentForm, subject: value, year: "" })}
+                      placeholder="Select Subject"
+                      options={assignmentSubjectOptions.map((subject) => [subject.name, subject.name])}
+                    />
 
-                    <label className="space-y-1">
-                      <span className="text-xs font-black uppercase tracking-wide text-slate-500">Assign To</span>
-                      <select
-                        value={assignmentForm.targetStudentEmail}
-                        onChange={(event) => setAssignmentForm({ ...assignmentForm, targetStudentEmail: event.target.value })}
-                        className="w-full rounded-lg border border-slate-200 p-3 text-sm"
-                      >
-                        <option value="">Entire Class</option>
-                        {assignmentStudentOptions.map((student) => (
-                          <option key={student._id || student.email} value={student.email}>
-                            {student.name || "Student"} - {student.email}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                    <SearchableSelect
+                      label="Assign To"
+                      value={assignmentForm.targetStudentEmail}
+                      onChange={(value) => setAssignmentForm({ ...assignmentForm, targetStudentEmail: value })}
+                      emptyOption={["", "Entire Class"]}
+                      options={assignmentStudentOptions.map((student) => [
+                        student.email,
+                        `${student.name || "Student"} - ${student.email}`,
+                      ])}
+                    />
 
                     <label className="space-y-1">
                       <span className="text-xs font-black uppercase tracking-wide text-slate-500">Due date</span>
@@ -1035,54 +994,42 @@ const Admin = () => {
 
                     {assignmentForm.type === "quiz" ? (
                       <>
-                        <label className="space-y-1">
-                          <span className="text-xs font-black uppercase tracking-wide text-slate-500">Year</span>
-                          <select
-                            value={assignmentForm.year}
-                            onChange={(event) => setAssignmentForm({ ...assignmentForm, year: event.target.value })}
-                            className="w-full rounded-lg border border-slate-200 p-3 text-sm"
-                          >
-                            <option value="">Select Year</option>
-                            {assignmentYearOptions.map((year) => (
-                              <option key={year} value={year}>{year}</option>
-                            ))}
-                          </select>
-                        </label>
-                        <label className="space-y-1">
-                          <span className="text-xs font-black uppercase tracking-wide text-slate-500">Season</span>
-                          <select
-                            value={assignmentForm.season}
-                            onChange={(event) => setAssignmentForm({ ...assignmentForm, season: event.target.value })}
-                            className="w-full rounded-lg border border-slate-200 p-3 text-sm"
-                          >
-                            <option value="">Select Season</option>
-                            <option value="Summer">Summer</option>
-                            <option value="Winter">Winter</option>
-                            <option value="Spring">Spring</option>
-                            <option value="Fall">Fall</option>
-                          </select>
-                        </label>
-                        <label className="space-y-1">
-                          <span className="text-xs font-black uppercase tracking-wide text-slate-500">Paper</span>
-                          <input
-                            value={assignmentForm.paperName}
-                            onChange={(event) => setAssignmentForm({ ...assignmentForm, paperName: event.target.value })}
-                            className="w-full rounded-lg border border-slate-200 p-3 text-sm"
-                            placeholder="1(core)"
-                          />
-                        </label>
-                        <label className="space-y-1">
-                          <span className="text-xs font-black uppercase tracking-wide text-slate-500">Variant</span>
-                          <select
-                            value={assignmentForm.variant}
-                            onChange={(event) => setAssignmentForm({ ...assignmentForm, variant: event.target.value })}
-                            className="w-full rounded-lg border border-slate-200 p-3 text-sm"
-                          >
-                            <option value="1">1</option>
-                            <option value="2">2</option>
-                            <option value="3">3</option>
-                          </select>
-                        </label>
+                        <SearchableSelect
+                          label="Year"
+                          value={assignmentForm.year}
+                          onChange={(value) => setAssignmentForm({ ...assignmentForm, year: value })}
+                          placeholder="Select Year"
+                          options={assignmentYearOptions.map((year) => [year, year])}
+                        />
+                        <SearchableSelect
+                          label="Season"
+                          value={assignmentForm.season}
+                          onChange={(value) => setAssignmentForm({ ...assignmentForm, season: value })}
+                          placeholder="Select Season"
+                          options={[
+                            ["Summer", "Summer"],
+                            ["Winter", "Winter"],
+                            ["Spring", "Spring"],
+                            ["Fall", "Fall"],
+                          ]}
+                        />
+                        <SearchableSelect
+                          label="Paper"
+                          value={assignmentForm.paperName}
+                          onChange={(value) => setAssignmentForm({ ...assignmentForm, paperName: value })}
+                          placeholder="Select Paper"
+                          options={["1", "2", "1(core)", "2(extended)", "3", "4", "5", "6"].map((paper) => [paper, paper])}
+                        />
+                        <SearchableSelect
+                          label="Variant"
+                          value={assignmentForm.variant}
+                          onChange={(value) => setAssignmentForm({ ...assignmentForm, variant: value })}
+                          options={[
+                            ["1", "1"],
+                            ["2", "2"],
+                            ["3", "3"],
+                          ]}
+                        />
                       </>
                     ) : (
                       <label className="space-y-1 lg:col-span-2">
@@ -1131,24 +1078,20 @@ const Admin = () => {
                   <div className="grid gap-4 lg:grid-cols-5">
                     <label className="space-y-1 lg:col-span-2">
                       <span className="text-xs font-black uppercase tracking-wide text-slate-500">Existing User</span>
-                      <select
+                      <SearchableSelect
                         value={teacherForm.teacherId}
-                        onChange={(event) => {
-                          const selected = recentUsers.find((user) => user._id === event.target.value);
+                        onChange={(value) => {
+                          const selected = recentUsers.find((user) => user._id === value);
                           setTeacherForm({
                             ...teacherForm,
-                            teacherId: event.target.value,
+                            teacherId: value,
                             teacherEmail: selected?.email || teacherForm.teacherEmail,
                             teacherName: selected?.name || teacherForm.teacherName,
                           });
                         }}
-                        className="w-full rounded-lg border border-slate-200 p-3 text-sm"
-                      >
-                        <option value="">Select user or enter email below</option>
-                        {recentUsers.map((user) => (
-                          <option key={user._id} value={user._id}>{user.name || "User"} - {user.email}</option>
-                        ))}
-                      </select>
+                        placeholder="Select user or enter email below"
+                        options={recentUsers.map((user) => [user._id, `${user.name || "User"} - ${user.email}`])}
+                      />
                     </label>
                     <label className="space-y-1">
                       <span className="text-xs font-black uppercase tracking-wide text-slate-500">Teacher Email</span>
@@ -1160,10 +1103,12 @@ const Admin = () => {
                     </label>
                     <label className="space-y-1">
                       <span className="text-xs font-black uppercase tracking-wide text-slate-500">Board</span>
-                      <select value={teacherForm.board} onChange={(event) => setTeacherForm({ ...teacherForm, board: event.target.value })} className="w-full rounded-lg border border-slate-200 p-3 text-sm">
-                        <option value="">Select Board</option>
-                        {boards.map((board) => <option key={board._id} value={board.name}>{board.name}</option>)}
-                      </select>
+                      <SearchableSelect
+                        value={teacherForm.board}
+                        onChange={(value) => setTeacherForm({ ...teacherForm, board: value })}
+                        placeholder="Select Board"
+                        options={boards.map((board) => [board.name, board.name])}
+                      />
                     </label>
                     <label className="space-y-1 lg:col-span-4">
                       <span className="text-xs font-black uppercase tracking-wide text-slate-500">Classes</span>
@@ -1395,31 +1340,35 @@ const Admin = () => {
             />
 
             {activeModal === "subject" && (
-              <select value={tempData.link} onChange={(event) => setTempData({ ...tempData, link: event.target.value })} className="mb-3 w-full rounded-lg border border-slate-200 p-3 text-sm">
-                <option value="">Select Board</option>
-                {boards.map((board) => <option key={board._id} value={board._id}>{board.name}</option>)}
-              </select>
+              <SearchableSelect
+                value={tempData.link}
+                onChange={(value) => setTempData({ ...tempData, link: value })}
+                placeholder="Select Board"
+                className="mb-3"
+                options={boards.map((board) => [board._id, board.name])}
+              />
             )}
 
             {activeModal === "topic" && (
               <>
-                <select
+                <SearchableSelect
                   value={tempData.boardId}
-                  onChange={(event) => {
-                    const boardId = event.target.value;
+                  onChange={(boardId) => {
                     setTempData({ ...tempData, boardId, link: "" });
                     dispatch(clearSubjects());
                     if (boardId) dispatch(fetchSubjects(boardId));
                   }}
-                  className="mb-3 w-full rounded-lg border border-slate-200 p-3 text-sm"
-                >
-                  <option value="">Select Board</option>
-                  {boards.map((board) => <option key={board._id} value={board._id}>{board.name}</option>)}
-                </select>
-                <select value={tempData.link} onChange={(event) => setTempData({ ...tempData, link: event.target.value })} className="mb-3 w-full rounded-lg border border-slate-200 p-3 text-sm">
-                  <option value="">Select Subject</option>
-                  {subjects.map((subject) => <option key={subject._id} value={subject._id}>{subject.name}</option>)}
-                </select>
+                  placeholder="Select Board"
+                  className="mb-3"
+                  options={boards.map((board) => [board._id, board.name])}
+                />
+                <SearchableSelect
+                  value={tempData.link}
+                  onChange={(value) => setTempData({ ...tempData, link: value })}
+                  placeholder="Select Subject"
+                  className="mb-3"
+                  options={subjects.map((subject) => [subject._id, subject.name])}
+                />
               </>
             )}
 
