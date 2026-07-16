@@ -76,6 +76,18 @@ const formatDate = (value) => {
   }).format(new Date(value));
 };
 
+const toDateInputValue = (date) => date.toISOString().slice(0, 10);
+
+const getDefaultPlanExpiry = (plan) => {
+  const longestDuration = [...(plan?.durations || [])].sort(
+    (a, b) => (b.durationDays || 0) - (a.durationDays || 0)
+  )[0];
+  const durationDays = longestDuration?.durationDays || 365;
+  const expiry = new Date();
+  expiry.setDate(expiry.getDate() + durationDays);
+  return toDateInputValue(expiry);
+};
+
 const StatCard = ({ icon, label, value, tone, helper }) => (
   <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
     <div className="flex items-start justify-between gap-3">
@@ -160,6 +172,16 @@ const Admin = () => {
   const contentMap = summary?.contentMap || [];
   const plans = summary?.plans || [];
   const activePlans = plans.filter((plan) => plan.isActive);
+  const proPlan = activePlans.find((plan) => plan.name?.toLowerCase() === "pro");
+  const planSelectOptions = useMemo(() => {
+    const options = [["Free", "Free"]];
+    activePlans.forEach((plan) => {
+      if (plan.name && !options.some(([value]) => value === plan.name)) {
+        options.push([plan.name, plan.name]);
+      }
+    });
+    return options;
+  }, [activePlans]);
   const currentYear = new Date().getFullYear();
   const fallbackYearOptions = useMemo(
     () => Array.from({ length: currentYear - 2009 }, (_, index) => String(currentYear - index)),
@@ -653,6 +675,15 @@ const Admin = () => {
     } finally {
       setStudentSaving(false);
     }
+  };
+
+  const assignProPlan = () => {
+    const planName = proPlan?.name || "Pro";
+    setStudentForm((current) => ({
+      ...current,
+      planName,
+      planExpiry: current.planExpiry || getDefaultPlanExpiry(proPlan),
+    }));
   };
 
   const saveSuperadminNote = async (sessionId, superadminNote) => {
@@ -1569,12 +1600,25 @@ const Admin = () => {
                     className="w-full rounded-lg border border-slate-200 p-3 text-sm outline-none focus:border-indigo-400"
                   />
                 </label>
-                <SearchableSelect
-                  label="Plan"
-                  value={studentForm.planName}
-                  onChange={(value) => setStudentForm({ ...studentForm, planName: value })}
-                  options={[["Free", "Free"], ...plans.map((plan) => [plan.name, plan.name])]}
-                />
+                <div className="space-y-2">
+                  <SearchableSelect
+                    label="Plan"
+                    value={studentForm.planName}
+                    onChange={(value) => setStudentForm({ ...studentForm, planName: value })}
+                    options={planSelectOptions}
+                  />
+                  <button
+                    type="button"
+                    onClick={assignProPlan}
+                    className="inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-black uppercase tracking-wide text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-100"
+                  >
+                    <WalletCards size={14} />
+                    Assign Pro Plan
+                  </button>
+                  <p className="text-xs font-semibold text-slate-500">
+                    Paid plans unlock MCQs, PDFs and full year access after saving.
+                  </p>
+                </div>
                 <label className="space-y-1">
                   <span className="text-xs font-black uppercase tracking-wide text-slate-500">Plan Expiry</span>
                   <input
