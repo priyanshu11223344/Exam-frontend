@@ -25,6 +25,7 @@ const SearchableSelect = ({
   emptyOption,
   className = "",
   disabled = false,
+  size = "default",
 }) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -65,6 +66,8 @@ const SearchableSelect = ({
     setOpen(false);
   };
 
+  const compact = size === "compact";
+
   return (
     <label ref={wrapperRef} className={`relative block space-y-1 ${className}`}>
       {label && <span className="text-xs font-black uppercase tracking-wide text-slate-500">{label}</span>}
@@ -72,7 +75,9 @@ const SearchableSelect = ({
         type="button"
         disabled={disabled}
         onClick={() => setOpen((current) => !current)}
-        className="flex w-full items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-3 text-left text-sm text-slate-900 shadow-sm transition hover:border-slate-300 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+        className={`flex w-full items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white text-left text-sm text-slate-900 transition hover:border-slate-300 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400 ${
+          compact ? "p-2 shadow-none" : "p-3 shadow-sm"
+        }`}
       >
         <span className={selectedOption ? "truncate" : "truncate text-slate-400"}>
           {selectedOption?.label || placeholder}
@@ -81,7 +86,7 @@ const SearchableSelect = ({
       </button>
 
       {open && (
-        <div className="absolute left-0 right-0 z-50 mt-2 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl">
+        <div className="absolute left-0 right-0 z-50 mt-2 min-w-48 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl">
           <div className="flex items-center gap-2 border-b border-slate-100 px-3 py-2">
             <Search size={15} className="text-slate-400" />
             <input

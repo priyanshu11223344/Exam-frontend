@@ -295,12 +295,14 @@ const TeacherDashboard = () => {
 
   return (
     <div className="flex min-h-screen bg-slate-100 text-slate-900">
-      <aside className="hidden w-72 flex-col bg-slate-950 p-5 text-white lg:flex">
-        <div className="mb-8 flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-4">
-          <img src={Logo} alt="Aurethia" className="h-11 w-11 rounded-lg object-contain" />
-          <div>
-            <p className="text-xs font-black uppercase tracking-widest text-indigo-200">Aurethia</p>
-            <h1 className="text-lg font-black">Teacher Console</h1>
+      <aside className="hidden w-64 shrink-0 flex-col bg-slate-950 p-4 text-white lg:flex">
+        <div className="mb-8 rounded-lg border border-white/10 bg-white/5 p-4">
+          <div className="flex items-center gap-3">
+            <img src={Logo} alt="Aurethia" className="h-10 w-10 shrink-0 rounded-lg object-contain" />
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-widest text-indigo-200">Aurethia</p>
+              <h1 className="text-base font-black leading-tight">Teacher Console</h1>
+            </div>
           </div>
         </div>
 
@@ -312,7 +314,7 @@ const TeacherDashboard = () => {
               <button
                 key={tab.id}
                 onClick={() => goToTab(tab.id)}
-                className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-bold ${
+                className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm font-bold ${
                   active ? "bg-indigo-600 text-white" : "text-slate-300 hover:bg-white/10"
                 }`}
               >
@@ -325,24 +327,24 @@ const TeacherDashboard = () => {
 
         <button
           onClick={() => signOut()}
-          className="mt-auto flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold text-slate-300 hover:bg-white/10"
+          className="mt-auto flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-bold text-slate-300 hover:bg-white/10"
         >
           <LogOut size={18} />
           Sign out
         </button>
       </aside>
 
-      <main className="flex-1">
-        <header className="border-b border-slate-200 bg-white px-5 py-5 md:px-8">
+      <main className="min-w-0 flex-1">
+        <header className="border-b border-slate-200 bg-white px-5 py-5 md:px-8 lg:px-10">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <p className="text-xs font-black uppercase tracking-widest text-indigo-600">Signed in as teacher</p>
-              <h2 className="text-2xl font-black">{teacherName}</h2>
+              <h2 className="text-3xl font-black tracking-tight">{teacherName}</h2>
               <p className="text-sm font-semibold text-slate-500">{teacherEmail}</p>
             </div>
             <button
               onClick={loadTeacher}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700"
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50"
             >
               <RefreshCw size={16} /> Refresh
             </button>
@@ -363,7 +365,7 @@ const TeacherDashboard = () => {
           </div>
         </header>
 
-        <div className="p-5 md:p-8">
+        <div className="mx-auto max-w-[1680px] p-5 md:p-8 lg:p-10">
           {error && <div className="mb-5 rounded-lg bg-rose-50 p-4 text-sm font-semibold text-rose-700">{error}</div>}
 
           {!assignment && (
@@ -430,22 +432,26 @@ const TeacherDashboard = () => {
 
           {activeTab === "papers" && (
             <section className="space-y-5">
-              <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h3 className="font-black">Upload To Question Bank</h3>
-                <p className="mt-1 text-sm font-semibold text-slate-500">
-                  Add questions to the main system for your assigned board. Drive links can be separated with | or a new line.
-                </p>
+              <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
+                  <div>
+                    <h3 className="text-lg font-black">Upload To Question Bank</h3>
+                    <p className="mt-1 text-sm font-semibold text-slate-500">
+                      Add questions to the main system for your assigned board. Drive links can be separated with | or a new line.
+                    </p>
+                  </div>
+                </div>
 
                 <form onSubmit={uploadQuestionBankRows} className="mt-5 space-y-4">
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[1180px] text-left">
+                  <div className="overflow-x-auto rounded-lg border border-slate-100">
+                    <table className="w-full min-w-[1280px] table-fixed text-left">
                       <thead className="bg-slate-50 text-xs font-black uppercase tracking-wide text-slate-500">
                         <tr>
-                          <th className="p-3">Category</th>
-                          <th className="p-3">Paper Details</th>
-                          <th className="p-3">Question & Scheme</th>
-                          <th className="p-3">Analysis</th>
-                          <th className="p-3 text-center">Action</th>
+                          <th className="w-[25%] p-3">Category</th>
+                          <th className="w-[18%] p-3">Paper Details</th>
+                          <th className="w-[27%] p-3">Question & Scheme</th>
+                          <th className="w-[25%] p-3">Analysis</th>
+                          <th className="w-[5%] p-3 text-center">Action</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -453,8 +459,8 @@ const TeacherDashboard = () => {
                           <tr key={row.id} className="align-top">
                             <td className="space-y-2 p-3">
                               <input value={assignment?.board || ""} readOnly className="w-full rounded-lg border border-slate-200 bg-slate-50 p-2 text-sm font-bold text-slate-500" />
-                              <input placeholder="Subject" value={row.subject} onChange={(event) => updateQuestionRow(row.id, "subject", event.target.value)} className="w-full rounded-lg border border-slate-200 p-2 text-sm" />
-                              <input placeholder="Topic" value={row.topic} onChange={(event) => updateQuestionRow(row.id, "topic", event.target.value)} className="w-full rounded-lg border border-slate-200 p-2 text-sm" />
+                              <input placeholder="Subject" value={row.subject} onChange={(event) => updateQuestionRow(row.id, "subject", event.target.value)} className="w-full rounded-lg border border-slate-200 p-2 text-sm outline-none focus:border-indigo-400" />
+                              <input placeholder="Topic" value={row.topic} onChange={(event) => updateQuestionRow(row.id, "topic", event.target.value)} className="w-full rounded-lg border border-slate-200 p-2 text-sm outline-none focus:border-indigo-400" />
                             </td>
                             <td className="space-y-2 p-3">
                               <input type="number" placeholder="Year" value={row.year} onChange={(event) => updateQuestionRow(row.id, "year", event.target.value)} className="w-full rounded-lg border border-slate-200 p-2 text-sm" />
@@ -462,6 +468,7 @@ const TeacherDashboard = () => {
                                 value={row.season}
                                 onChange={(value) => updateQuestionRow(row.id, "season", value)}
                                 placeholder="Season"
+                                size="compact"
                                 options={["Summer", "Winter", "Spring", "Fall"].map((season) => [season, season])}
                               />
                               <div className="grid grid-cols-[1fr_72px] gap-2">
@@ -469,24 +476,26 @@ const TeacherDashboard = () => {
                                   value={row.paperName}
                                   onChange={(value) => updateQuestionRow(row.id, "paperName", value)}
                                   placeholder="Paper"
+                                  size="compact"
                                   options={["1", "2", "1(core)", "2(extended)", "3", "4", "5", "6"].map((paper) => [paper, paper])}
                                 />
                                 <SearchableSelect
                                   value={row.variant}
                                   onChange={(value) => updateQuestionRow(row.id, "variant", value)}
+                                  size="compact"
                                   options={[["1", "V1"], ["2", "V2"], ["3", "V3"]]}
                                 />
                               </div>
                             </td>
                             <td className="space-y-2 p-3">
                               <input type="number" placeholder="Q#" value={row.questionNumber} onChange={(event) => updateQuestionRow(row.id, "questionNumber", event.target.value)} className="w-full rounded-lg border border-slate-200 p-2 text-sm font-bold" />
-                              <textarea placeholder="Question paper Drive link(s), | or new line" value={row.questionPaper} onChange={(event) => updateQuestionRow(row.id, "questionPaper", event.target.value)} className="h-20 w-full resize-none rounded-lg border border-slate-200 p-2 text-sm" />
-                              <textarea placeholder="Mark scheme Drive link(s), | or new line" value={row.markScheme} onChange={(event) => updateQuestionRow(row.id, "markScheme", event.target.value)} className="h-20 w-full resize-none rounded-lg border border-slate-200 p-2 text-sm" />
+                              <textarea placeholder="Question paper Drive link(s), | or new line" value={row.questionPaper} onChange={(event) => updateQuestionRow(row.id, "questionPaper", event.target.value)} className="h-20 w-full resize-none rounded-lg border border-slate-200 p-2 text-sm outline-none focus:border-indigo-400" />
+                              <textarea placeholder="Mark scheme Drive link(s), | or new line" value={row.markScheme} onChange={(event) => updateQuestionRow(row.id, "markScheme", event.target.value)} className="h-20 w-full resize-none rounded-lg border border-slate-200 p-2 text-sm outline-none focus:border-indigo-400" />
                             </td>
                             <td className="space-y-2 p-3">
                               <input placeholder="Correct Answer" value={row.correctAnswer} onChange={(event) => updateQuestionRow(row.id, "correctAnswer", event.target.value)} className="w-full rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-sm" />
-                              <textarea placeholder="Explanation link" value={row.explanation} onChange={(event) => updateQuestionRow(row.id, "explanation", event.target.value)} className="h-20 w-full resize-none rounded-lg border border-slate-200 p-2 text-sm" />
-                              <textarea placeholder="Admin comment link" value={row.specialComment} onChange={(event) => updateQuestionRow(row.id, "specialComment", event.target.value)} className="h-20 w-full resize-none rounded-lg border border-slate-200 p-2 text-sm" />
+                              <textarea placeholder="Explanation link" value={row.explanation} onChange={(event) => updateQuestionRow(row.id, "explanation", event.target.value)} className="h-20 w-full resize-none rounded-lg border border-slate-200 p-2 text-sm outline-none focus:border-indigo-400" />
+                              <textarea placeholder="Admin comment link" value={row.specialComment} onChange={(event) => updateQuestionRow(row.id, "specialComment", event.target.value)} className="h-20 w-full resize-none rounded-lg border border-slate-200 p-2 text-sm outline-none focus:border-indigo-400" />
                             </td>
                             <td className="p-3 text-center">
                               <button type="button" onClick={() => deleteQuestionRow(row.id)} className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600" aria-label="Delete row">
@@ -509,8 +518,8 @@ const TeacherDashboard = () => {
                 </form>
               </div>
 
-              <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h3 className="font-black">Publish Assignment To Students</h3>
+              <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+                <h3 className="text-lg font-black">Publish Assignment To Students</h3>
                 <p className="mt-1 text-sm font-semibold text-slate-500">
                   Publish a custom question paper or quiz to students in one of your assigned classes.
                 </p>
