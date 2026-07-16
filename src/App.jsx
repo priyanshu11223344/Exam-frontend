@@ -100,8 +100,11 @@ const App = () => {
           }
         />
         <Route path="/admin" element={<AdminProtected><Admin /></AdminProtected>}></Route>
+        <Route path="/admin/:section" element={<AdminProtected><Admin /></AdminProtected>}></Route>
         <Route path="/UserDashboard" element={<StudentProtected><UserDashboard /></StudentProtected>}></Route>
+        <Route path="/UserDashboard/:tab" element={<StudentProtected><UserDashboard /></StudentProtected>}></Route>
         <Route path="/TeacherDashboard" element={<TeacherProtected><TeacherDashboard /></TeacherProtected>}></Route>
+        <Route path="/TeacherDashboard/:tab" element={<TeacherProtected><TeacherDashboard /></TeacherProtected>}></Route>
         <Route path="/pricingPage" element={<PricingPage />}></Route>
       </Routes>
     </Router>

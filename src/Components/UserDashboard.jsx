@@ -8,21 +8,26 @@ import {
 import { useDispatch, useSelector } from "react-redux";
 import { fetchUser, updateUser } from '../features/user/userSlice';
 import { useAuth, useUser } from '@clerk/react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import Logo from "../assets/Aurethia_logo.avif"
 import API from '../api/axios';
+
+const STUDENT_TAB_IDS = ["dashboard", "exams", "calendar", "performance", "profile"];
+
 const UserDashboard = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const { tab } = useParams();
   const { getToken } = useAuth();
   const { user: clerkUser, isLoaded: isClerkLoaded } = useUser();
   const { user, loading, error } = useSelector((state) => state.user);
+  const activeTab = STUDENT_TAB_IDS.includes(tab) ? tab : "dashboard";
   
   // Modal & Form State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: '', school: '', board: '', studentClass: '', age: ''
   });
-  const [activeTab, setActiveTab] = useState("dashboard");
   const [assignedExams, setAssignedExams] = useState([]);
   const [classSessions, setClassSessions] = useState([]);
   const [examLoading, setExamLoading] = useState(false);
@@ -119,6 +124,10 @@ const UserDashboard = () => {
     setIsModalOpen(false);
   };
 
+  const goToTab = (tabId) => {
+    navigate(`/UserDashboard/${tabId}`);
+  };
+
   const handleAnswerUpload = async (assignmentId) => {
     const files = answerFiles[assignmentId] || [];
 
@@ -156,11 +165,11 @@ const UserDashboard = () => {
         </div>
         
         <nav className="flex-1 px-4 space-y-1.5">
-          <SidebarItem icon={<LayoutDashboard size={20}/>} label="Dashboard" active={activeTab === "dashboard"} onClick={() => setActiveTab("dashboard")} />
-          <SidebarItem icon={<BookOpen size={20}/>} label="My Exams" active={activeTab === "exams"} onClick={() => setActiveTab("exams")} />
-          <SidebarItem icon={<Calendar size={20}/>} label="Calendar" active={activeTab === "calendar"} onClick={() => setActiveTab("calendar")} />
-          <SidebarItem icon={<Trophy size={20}/>} label="Performance" active={activeTab === "performance"} onClick={() => setActiveTab("performance")} />
-          <SidebarItem icon={<User size={20}/>} label="Profile" active={activeTab === "profile"} onClick={() => setActiveTab("profile")} />
+          <SidebarItem icon={<LayoutDashboard size={20}/>} label="Dashboard" active={activeTab === "dashboard"} onClick={() => goToTab("dashboard")} />
+          <SidebarItem icon={<BookOpen size={20}/>} label="My Exams" active={activeTab === "exams"} onClick={() => goToTab("exams")} />
+          <SidebarItem icon={<Calendar size={20}/>} label="Calendar" active={activeTab === "calendar"} onClick={() => goToTab("calendar")} />
+          <SidebarItem icon={<Trophy size={20}/>} label="Performance" active={activeTab === "performance"} onClick={() => goToTab("performance")} />
+          <SidebarItem icon={<User size={20}/>} label="Profile" active={activeTab === "profile"} onClick={() => goToTab("profile")} />
         </nav>
 
         <div className="p-6 mt-auto">
@@ -252,7 +261,7 @@ const UserDashboard = () => {
             <div className="lg:col-span-2 space-y-6">
               <div className="flex justify-between items-end mb-2 px-2">
                 <h2 className="text-xl font-black text-slate-900 tracking-tight">Upcoming Assessments</h2>
-                <button onClick={() => setActiveTab("calendar")} className="text-indigo-600 text-[11px] font-black uppercase tracking-widest hover:underline">View Calendar</button>
+                <button onClick={() => goToTab("calendar")} className="text-indigo-600 text-[11px] font-black uppercase tracking-widest hover:underline">View Calendar</button>
               </div>
               
               <div className="grid gap-4">
@@ -273,7 +282,7 @@ const UserDashboard = () => {
                         <p className="text-sm text-slate-500 font-medium">{exam.subject} • <span className="text-indigo-500">{exam.durationMinutes || 60} mins</span></p>
                       </div>
                     </div>
-                    <button onClick={() => setActiveTab("exams")} className="bg-slate-50 text-slate-900 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all">
+                    <button onClick={() => goToTab("exams")} className="bg-slate-50 text-slate-900 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all">
                       Launch
                     </button>
                   </div>

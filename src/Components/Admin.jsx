@@ -26,7 +26,7 @@ import {
   WalletCards,
 } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import API from "../api/axios";
 import { fetchBoards, createBoard } from "../features/board/boardSlice";
 import { fetchSubjects, clearSubjects, createSubject } from "../features/subject/subjectSlice";
@@ -51,6 +51,18 @@ const emptyRow = (base = {}) => ({
   explanation: "",
   specialComment: "",
 });
+
+const ADMIN_SECTION_IDS = [
+  "overview",
+  "content",
+  "questions",
+  "assignments",
+  "teachers",
+  "remarks",
+  "students",
+  "plans",
+  "links",
+];
 
 const formatDate = (value) => {
   if (!value) return "Not set";
@@ -78,11 +90,13 @@ const StatCard = ({ icon, label, value, tone, helper }) => (
 
 const Admin = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const { section } = useParams();
   const fileInputRef = useRef(null);
   const { boards = [] } = useSelector((state) => state.boards);
   const { subjects = [] } = useSelector((state) => state.subjects);
 
-  const [activeSection, setActiveSection] = useState("overview");
+  const activeSection = ADMIN_SECTION_IDS.includes(section) ? section : "overview";
   const [questionMode, setQuestionMode] = useState("manual");
   const [summary, setSummary] = useState(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
@@ -532,6 +546,10 @@ const Admin = () => {
     { id: "links", label: "App Links", icon: LinkIcon },
   ];
 
+  const goToSection = (sectionId) => {
+    navigate(`/admin/${sectionId}`);
+  };
+
   return (
     <div className="min-h-screen bg-slate-100 text-slate-950">
       <div className="flex min-h-screen">
@@ -555,7 +573,7 @@ const Admin = () => {
               return (
                 <button
                   key={section.id}
-                  onClick={() => setActiveSection(section.id)}
+                  onClick={() => goToSection(section.id)}
                   className={`mb-1 flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm font-bold transition ${
                     active
                       ? "bg-slate-950 text-white"
@@ -611,7 +629,7 @@ const Admin = () => {
                 return (
                   <button
                     key={section.id}
-                    onClick={() => setActiveSection(section.id)}
+                    onClick={() => goToSection(section.id)}
                     className={`inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold ${
                       activeSection === section.id
                         ? "bg-slate-950 text-white"
@@ -657,7 +675,7 @@ const Admin = () => {
                         <h3 className="font-black">Recent Questions</h3>
                         <p className="text-sm text-slate-500">Newest content flowing into practice and quiz views</p>
                       </div>
-                      <button onClick={() => setActiveSection("questions")} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-slate-700">
+                      <button onClick={() => goToSection("questions")} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-slate-700">
                         Manage
                       </button>
                     </div>
@@ -725,7 +743,7 @@ const Admin = () => {
                           <h4 className="text-lg font-black">{board.name}</h4>
                           <p className="text-sm text-slate-500">{board.subjectCount} subjects linked</p>
                         </div>
-                        <button onClick={() => setActiveSection("questions")} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-slate-700">
+                        <button onClick={() => goToSection("questions")} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-slate-700">
                           Add Questions
                         </button>
                       </div>

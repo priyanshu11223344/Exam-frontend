@@ -22,23 +22,23 @@ const RedirectPage = () => {
   }
 
   if (lastRoute && lastPath) {
-    const adminOnlyRoutes = new Set(["/admin"]);
-    const teacherOnlyRoutes = new Set(["/TeacherDashboard"]);
-    const studentOnlyRoutes = new Set(["/UserDashboard"]);
+    const isAdminRoute = lastPath === "/admin" || lastPath.startsWith("/admin/");
+    const isTeacherRoute = lastPath === "/TeacherDashboard" || lastPath.startsWith("/TeacherDashboard/");
+    const isStudentRoute = lastPath === "/UserDashboard" || lastPath.startsWith("/UserDashboard/");
 
-    if (role === "admin" && !studentOnlyRoutes.has(lastPath) && lastPath !== "/home") {
+    if (role === "admin" && !isStudentRoute && lastPath !== "/home") {
       return <Navigate to={lastRoute} replace />;
     }
 
-    if (role === "teacher" && teacherOnlyRoutes.has(lastPath)) {
+    if (role === "teacher" && isTeacherRoute) {
       return <Navigate to={lastRoute} replace />;
     }
 
     if (
       role !== "admin" &&
       role !== "teacher" &&
-      !adminOnlyRoutes.has(lastPath) &&
-      !teacherOnlyRoutes.has(lastPath)
+      !isAdminRoute &&
+      !isTeacherRoute
     ) {
       return <Navigate to={lastRoute} replace />;
     }

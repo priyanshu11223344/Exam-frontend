@@ -15,8 +15,11 @@ import {
   Users,
 } from "lucide-react";
 import { useAuth, useUser } from "@clerk/react";
+import { useNavigate, useParams } from "react-router-dom";
 import API from "../api/axios";
 import Logo from "../assets/Aurethia_logo.avif";
+
+const TEACHER_TAB_IDS = ["overview", "papers", "calendar", "remarks"];
 
 const initialSession = {
   title: "",
@@ -62,7 +65,9 @@ const emptyQuestionRow = () => ({
 const TeacherDashboard = () => {
   const { signOut } = useAuth();
   const { user: clerkUser, isLoaded } = useUser();
-  const [activeTab, setActiveTab] = useState("overview");
+  const navigate = useNavigate();
+  const { tab } = useParams();
+  const activeTab = TEACHER_TAB_IDS.includes(tab) ? tab : "overview";
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [context, setContext] = useState({ assignment: null, students: [], sessions: [] });
@@ -149,7 +154,7 @@ const TeacherDashboard = () => {
       });
       setSessionForm(initialSession);
       await loadTeacher();
-      setActiveTab("calendar");
+      navigate("/TeacherDashboard/calendar");
     } catch (err) {
       alert(err.response?.data?.error || "Unable to schedule class");
     } finally {
@@ -260,6 +265,10 @@ const TeacherDashboard = () => {
     { id: "remarks", label: "Teacher Remarks", icon: MessageSquareText },
   ];
 
+  const goToTab = (tabId) => {
+    navigate(`/TeacherDashboard/${tabId}`);
+  };
+
   if (!isLoaded || loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-slate-100 text-slate-500 font-semibold">
@@ -286,7 +295,7 @@ const TeacherDashboard = () => {
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => goToTab(tab.id)}
                 className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-bold ${
                   active ? "bg-indigo-600 text-white" : "text-slate-300 hover:bg-white/10"
                 }`}
@@ -327,7 +336,7 @@ const TeacherDashboard = () => {
             {tabs.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => goToTab(tab.id)}
                 className={`shrink-0 rounded-lg px-3 py-2 text-sm font-bold ${
                   activeTab === tab.id ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600"
                 }`}
