@@ -110,6 +110,7 @@ const Admin = () => {
   const [assignmentFile, setAssignmentFile] = useState(null);
   const [assignmentSubjects, setAssignmentSubjects] = useState([]);
   const [assignmentSaving, setAssignmentSaving] = useState(false);
+  const [adminUsers, setAdminUsers] = useState([]);
   const [teacherData, setTeacherData] = useState({ teachers: [], assignments: [] });
   const [teacherRemarks, setTeacherRemarks] = useState([]);
   const [teacherSaving, setTeacherSaving] = useState(false);
@@ -126,6 +127,7 @@ const Admin = () => {
     board: "",
     className: "",
     subject: "",
+    targetStudentEmail: "",
     dueAt: "",
     durationMinutes: "60",
     instructions: "",
@@ -194,6 +196,14 @@ const Admin = () => {
     return Array.from(subjectsById.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [assignmentForm.board, assignmentForm.className, assignmentSubjects, contentMap, teacherData.assignments]);
 
+  const assignmentStudentOptions = useMemo(() => {
+    return adminUsers
+      .filter((user) => user.role !== "admin" && user.role !== "teacher")
+      .filter((user) => !assignmentForm.board || !user.board || user.board === assignmentForm.board)
+      .filter((user) => !assignmentForm.className || String(user.studentClass || "") === String(assignmentForm.className))
+      .sort((a, b) => (a.name || a.email || "").localeCompare(b.name || b.email || ""));
+  }, [adminUsers, assignmentForm.board, assignmentForm.className]);
+
   const assignmentYearOptions = useMemo(() => {
     const years = new Set();
     recentQuestions.forEach((question) => {
@@ -230,6 +240,9 @@ const Admin = () => {
         dispatch(fetchBoards()),
       ]);
       setSummary(dashboardRes.data.data);
+      API.get("/admin/users")
+        .then((response) => setAdminUsers(response.data.data || []))
+        .catch((error) => console.warn("Unable to load students", error));
       loadTeachers();
     } catch (error) {
       setSummaryError(error.response?.data?.error || "Unable to load admin dashboard");
@@ -248,6 +261,7 @@ const Admin = () => {
       board: boardName,
       className: "",
       subject: "",
+      targetStudentEmail: "",
       year: "",
       paperName: "",
     }));
@@ -283,6 +297,7 @@ const Admin = () => {
       ...current,
       className,
       subject: defaultSubject,
+      targetStudentEmail: "",
       year: "",
     }));
   };
@@ -467,6 +482,14 @@ const Admin = () => {
       formData.append(key, value);
     });
 
+    const targetStudent = assignmentStudentOptions.find(
+      (student) => student.email === assignmentForm.targetStudentEmail
+    );
+    if (targetStudent) {
+      formData.set("targetStudentId", targetStudent._id);
+      formData.set("targetStudentName", targetStudent.name || "Student");
+    }
+
     if (assignmentFile) {
       formData.append("questionPaper", assignmentFile);
     }
@@ -481,6 +504,7 @@ const Admin = () => {
         board: "",
         className: "",
         subject: "",
+        targetStudentEmail: "",
         dueAt: "",
         durationMinutes: "60",
         instructions: "",
@@ -979,6 +1003,22 @@ const Admin = () => {
                         <option value="">Select Subject</option>
                         {assignmentSubjectOptions.map((subject) => (
                           <option key={subject._id || subject.name} value={subject.name}>{subject.name}</option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="space-y-1">
+                      <span className="text-xs font-black uppercase tracking-wide text-slate-500">Assign To</span>
+                      <select
+                        value={assignmentForm.targetStudentEmail}
+                        onChange={(event) => setAssignmentForm({ ...assignmentForm, targetStudentEmail: event.target.value })}
+                        className="w-full rounded-lg border border-slate-200 p-3 text-sm"
+                      >
+                        <option value="">Entire Class</option>
+                        {assignmentStudentOptions.map((student) => (
+                          <option key={student._id || student.email} value={student.email}>
+                            {student.name || "Student"} - {student.email}
+                          </option>
                         ))}
                       </select>
                     </label>

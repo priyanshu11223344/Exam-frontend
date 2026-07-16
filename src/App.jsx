@@ -16,7 +16,7 @@ import Quiz from './Components/Quiz/Quiz.jsx';
 import PricingPage from './Components/Subscription/PricingPage.jsx';
 import { fetchUser, setAdminAccess } from './features/user/userSlice.js';
 import { useDispatch } from 'react-redux';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Toaster } from 'react-hot-toast';
 import FeatureProtectedRoute from './Components/ProtectedRoutes/FeatureProtectedRoute.jsx';
 import { useAuth, useUser } from '@clerk/react';
@@ -25,6 +25,7 @@ const App = () => {
   // 🔥 Get real papers from Redux
   const {getToken}=useAuth();
   const { user, isLoaded } = useUser();
+  const fetchedUserIdRef = useRef("");
 
   useEffect(() => {
     if (!isLoaded || !user) return;
@@ -40,7 +41,8 @@ const App = () => {
   }, [dispatch, isLoaded, user]);
 
   useEffect(() => {
-    if (getToken && isLoaded && user) {
+    if (getToken && isLoaded && user && fetchedUserIdRef.current !== user.id) {
+      fetchedUserIdRef.current = user.id;
       dispatch(fetchUser({ getToken, clerkUser: user }));
     }
   }, [dispatch, getToken, isLoaded, user]);

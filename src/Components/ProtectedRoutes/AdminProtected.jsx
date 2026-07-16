@@ -6,18 +6,20 @@ const AdminProtected = ({ children }) => {
   const { isSignedIn, isLoaded, user } = useUser();
   const { user: backendUser, role: backendRole, loading } = useSelector((state) => state.user);
 
-  if (!isLoaded || loading) return <div>Loading...</div>;
+  const clerkRole = user?.publicMetadata?.role;
+
+  if (!isLoaded) return <div>Loading...</div>;
 
   // ❌ Not logged in
   if (!isSignedIn) {
     return <Navigate to="/login" />;
   }
 
-  if (!user?.publicMetadata?.role && !backendUser) {
+  if (!clerkRole && !backendUser && loading) {
     return <div>Checking permissions...</div>;
   }
 
-  const role = user?.publicMetadata?.role || backendRole || "user";
+  const role = clerkRole || backendRole || "user";
 
   // ❌ Not admin
   if (role !== "admin") {

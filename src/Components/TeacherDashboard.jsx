@@ -37,6 +37,7 @@ const initialAssignment = {
   board: "",
   className: "",
   subject: "",
+  targetStudentEmail: "",
   dueAt: "",
   durationMinutes: "60",
   instructions: "",
@@ -100,6 +101,12 @@ const TeacherDashboard = () => {
     return Array.from(new Set(subjects.filter(Boolean))).sort((a, b) => a.localeCompare(b));
   }, [assignmentForm.className, classOptions]);
 
+  const assignmentStudentOptions = useMemo(() => {
+    return (context.students || [])
+      .filter((student) => !assignmentForm.className || String(student.studentClass || "") === String(assignmentForm.className))
+      .sort((a, b) => (a.name || a.email || "").localeCompare(b.name || b.email || ""));
+  }, [assignmentForm.className, context.students]);
+
   const yearOptions = useMemo(() => {
     const currentYear = new Date().getFullYear();
     return Array.from({ length: currentYear - 2009 }, (_, index) => String(currentYear - index));
@@ -140,6 +147,7 @@ const TeacherDashboard = () => {
       className,
       board: assignment?.board || "",
       subject: selected?.subjects?.[0] || current.subject || "General",
+      ...(Object.prototype.hasOwnProperty.call(current, "targetStudentEmail") ? { targetStudentEmail: "" } : {}),
     }));
   };
 
@@ -172,6 +180,13 @@ const TeacherDashboard = () => {
 
     const formData = new FormData();
     Object.entries(assignmentForm).forEach(([key, value]) => formData.append(key, value));
+    const targetStudent = assignmentStudentOptions.find(
+      (student) => student.email === assignmentForm.targetStudentEmail
+    );
+    if (targetStudent) {
+      formData.set("targetStudentId", targetStudent._id);
+      formData.set("targetStudentName", targetStudent.name || "Student");
+    }
     formData.append("createdByRole", "teacher");
     formData.append("createdByEmail", teacherEmail);
     if (assignmentFile) formData.append("questionPaper", assignmentFile);
@@ -515,6 +530,18 @@ const TeacherDashboard = () => {
                     onChange={(value) => setAssignmentForm({ ...assignmentForm, subject: value })}
                     options={assignmentSubjectOptions.map((subject) => [subject, subject])}
                   />
+                  <Select
+                    label="Assign To"
+                    value={assignmentForm.targetStudentEmail}
+                    onChange={(value) => setAssignmentForm({ ...assignmentForm, targetStudentEmail: value })}
+                    emptyLabel="Entire Class"
+                    options={[
+                      ...assignmentStudentOptions.map((student) => [
+                        student.email,
+                        `${student.name || "Student"} - ${student.email}`,
+                      ]),
+                    ]}
+                  />
                   <Input label="Due date" type="datetime-local" value={assignmentForm.dueAt} onChange={(value) => setAssignmentForm({ ...assignmentForm, dueAt: value })} />
                   {assignmentForm.type === "quiz" ? (
                     <>
@@ -645,11 +672,11 @@ const Input = ({ label, value, onChange, type = "text" }) => (
   </label>
 );
 
-const Select = ({ label, value, onChange, options }) => (
+const Select = ({ label, value, onChange, options, emptyLabel = "Select" }) => (
   <label className="space-y-1">
     <span className="text-xs font-black uppercase tracking-wide text-slate-500">{label}</span>
     <select value={value} onChange={(event) => onChange(event.target.value)} className="w-full rounded-lg border border-slate-200 p-3 text-sm">
-      <option value="">Select</option>
+      <option value="">{emptyLabel}</option>
       {options.map(([optionValue, optionLabel]) => (
         <option key={optionValue} value={optionValue}>{optionLabel}</option>
       ))}

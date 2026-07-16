@@ -67,6 +67,7 @@ const UserDashboard = () => {
             params: {
               board: user.board,
               className: user.studentClass,
+              studentEmail: user.email,
             },
           }),
           API.get("/teachers/student-sessions", {
@@ -348,6 +349,7 @@ const UserDashboard = () => {
                       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                         <div>
                           <span className="inline-flex rounded-full bg-indigo-50 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-indigo-600">
+                            {exam.targetStudent?.email ? "Individual " : ""}
                             {exam.type === "quiz" ? "Quiz" : "Question Paper"}
                           </span>
                           <h3 className="mt-3 text-xl font-black text-slate-900">{exam.title}</h3>

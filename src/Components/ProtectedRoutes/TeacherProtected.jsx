@@ -6,17 +6,19 @@ const TeacherProtected = ({ children }) => {
   const { isSignedIn, isLoaded, user } = useUser();
   const { user: backendUser, role, loading } = useSelector((state) => state.user);
 
-  if (!isLoaded || loading) return <div>Loading...</div>;
+  const clerkRole = user?.publicMetadata?.role;
+
+  if (!isLoaded) return <div>Loading...</div>;
 
   if (!isSignedIn) {
     return <Navigate to="/login" />;
   }
 
-  if (!user?.publicMetadata?.role && !backendUser) {
+  if (!clerkRole && !backendUser && loading) {
     return <div>Checking teacher permissions...</div>;
   }
 
-  const resolvedRole = user?.publicMetadata?.role || role || "user";
+  const resolvedRole = clerkRole || role || "user";
 
   if (!["admin", "teacher"].includes(resolvedRole)) {
     return <Navigate to="/home" />;
