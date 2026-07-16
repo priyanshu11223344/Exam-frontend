@@ -51,11 +51,11 @@ const Navbar = () => {
               const role = user?.publicMetadata?.role || backendRole;
             
               if (role === "admin") {
-                navigate("/admin");
+                navigate("/admin/overview");
               } else if (role === "teacher") {
-                navigate("/TeacherDashboard");
+                navigate("/TeacherDashboard/overview");
               } else {
-                navigate("/UserDashboard");
+                navigate("/UserDashboard/dashboard");
               }
             }}
               className="bg-slate-900 text-white px-5 py-2 rounded-full hover:bg-slate-800 transition-all shadow-md"

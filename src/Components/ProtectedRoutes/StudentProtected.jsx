@@ -19,11 +19,11 @@ const StudentProtected = ({ children }) => {
   const resolvedRole = user?.publicMetadata?.role || role || "user";
 
   if (resolvedRole === "teacher") {
-    return <Navigate to="/TeacherDashboard" replace />;
+    return <Navigate to="/TeacherDashboard/overview" replace />;
   }
 
   if (resolvedRole === "admin") {
-    return <Navigate to="/admin" replace />;
+    return <Navigate to="/admin/overview" replace />;
   }
 
   return children;

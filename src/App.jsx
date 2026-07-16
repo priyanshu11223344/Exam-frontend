@@ -1,6 +1,6 @@
 import React from 'react';
 import Home from './Components/Home.jsx';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Navigate, Routes, Route } from 'react-router-dom';
 import { SignIn, SignUp } from "@clerk/react"
 import Admin from "./Components/Admin.jsx"
 import LandingPage from './Components/LandingPage.jsx';
@@ -99,11 +99,11 @@ const App = () => {
             </FeatureProtectedRoute>
           }
         />
-        <Route path="/admin" element={<AdminProtected><Admin /></AdminProtected>}></Route>
+        <Route path="/admin" element={<AdminProtected><Navigate to="/admin/overview" replace /></AdminProtected>}></Route>
         <Route path="/admin/:section" element={<AdminProtected><Admin /></AdminProtected>}></Route>
-        <Route path="/UserDashboard" element={<StudentProtected><UserDashboard /></StudentProtected>}></Route>
+        <Route path="/UserDashboard" element={<StudentProtected><Navigate to="/UserDashboard/dashboard" replace /></StudentProtected>}></Route>
         <Route path="/UserDashboard/:tab" element={<StudentProtected><UserDashboard /></StudentProtected>}></Route>
-        <Route path="/TeacherDashboard" element={<TeacherProtected><TeacherDashboard /></TeacherProtected>}></Route>
+        <Route path="/TeacherDashboard" element={<TeacherProtected><Navigate to="/TeacherDashboard/overview" replace /></TeacherProtected>}></Route>
         <Route path="/TeacherDashboard/:tab" element={<TeacherProtected><TeacherDashboard /></TeacherProtected>}></Route>
         <Route path="/pricingPage" element={<PricingPage />}></Route>
       </Routes>

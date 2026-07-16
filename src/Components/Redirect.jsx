@@ -45,11 +45,11 @@ const RedirectPage = () => {
   }
 
   if (role === "admin") {
-    return <Navigate to="/admin" replace />;
+    return <Navigate to="/admin/overview" replace />;
   }
 
   if (role === "teacher") {
-    return <Navigate to="/TeacherDashboard" replace />;
+    return <Navigate to="/TeacherDashboard/overview" replace />;
   }
 
   return <Navigate to="/home" replace />;
