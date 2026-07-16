@@ -11,6 +11,7 @@ import AdminProtected from "./Components/ProtectedRoutes/AdminProtected.jsx"
 import TeacherProtected from "./Components/ProtectedRoutes/TeacherProtected.jsx"
 import UserDashboard from './Components/UserDashboard.jsx';
 import TeacherDashboard from './Components/TeacherDashboard.jsx';
+import RouteMemory from './Components/RouteMemory.jsx';
 import Quiz from './Components/Quiz/Quiz.jsx';
 import PricingPage from './Components/Subscription/PricingPage.jsx';
 import { fetchUser, setAdminAccess } from './features/user/userSlice.js';
@@ -54,6 +55,7 @@ const App = () => {
 
     // </div>
     <Router>
+      <RouteMemory />
       <Toaster
         position="top-right"
         toastOptions={{

@@ -37,6 +37,10 @@ const initialAssignment = {
   dueAt: "",
   durationMinutes: "60",
   instructions: "",
+  year: "",
+  season: "",
+  paperName: "",
+  variant: "1",
 };
 
 const emptyQuestionRow = () => ({
@@ -80,6 +84,21 @@ const TeacherDashboard = () => {
       subjects: entry.subjects?.length ? entry.subjects : ["General"],
     }));
   }, [assignedClasses]);
+
+  const assignmentSubjectOptions = useMemo(() => {
+    const selectedClass = classOptions.find(
+      (entry) => String(entry.className) === String(assignmentForm.className)
+    );
+    const subjects = selectedClass?.subjects?.length
+      ? selectedClass.subjects
+      : classOptions.flatMap((entry) => entry.subjects || []);
+    return Array.from(new Set(subjects.filter(Boolean))).sort((a, b) => a.localeCompare(b));
+  }, [assignmentForm.className, classOptions]);
+
+  const yearOptions = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    return Array.from({ length: currentYear - 2009 }, (_, index) => String(currentYear - index));
+  }, []);
 
   const loadTeacher = async () => {
     if (!teacherEmail) return;
@@ -481,12 +500,46 @@ const TeacherDashboard = () => {
                     options={classOptions.map((entry) => [entry.className, `Grade ${entry.className}`])}
                   />
                   <Input label="Board" value={assignmentForm.board} onChange={(value) => setAssignmentForm({ ...assignmentForm, board: value })} />
-                  <Input label="Subject" value={assignmentForm.subject} onChange={(value) => setAssignmentForm({ ...assignmentForm, subject: value })} />
+                  <Select
+                    label="Subject"
+                    value={assignmentForm.subject}
+                    onChange={(value) => setAssignmentForm({ ...assignmentForm, subject: value })}
+                    options={assignmentSubjectOptions.map((subject) => [subject, subject])}
+                  />
                   <Input label="Due date" type="datetime-local" value={assignmentForm.dueAt} onChange={(value) => setAssignmentForm({ ...assignmentForm, dueAt: value })} />
-                  <label className="space-y-1 lg:col-span-2">
-                    <span className="text-xs font-black uppercase tracking-wide text-slate-500">Question paper file</span>
-                    <input type="file" accept=".pdf,image/*" onChange={(event) => setAssignmentFile(event.target.files?.[0] || null)} className="w-full rounded-lg border border-slate-200 p-3 text-sm" />
-                  </label>
+                  {assignmentForm.type === "quiz" ? (
+                    <>
+                      <Select
+                        label="Year"
+                        value={assignmentForm.year}
+                        onChange={(value) => setAssignmentForm({ ...assignmentForm, year: value })}
+                        options={yearOptions.map((year) => [year, year])}
+                      />
+                      <Select
+                        label="Season"
+                        value={assignmentForm.season}
+                        onChange={(value) => setAssignmentForm({ ...assignmentForm, season: value })}
+                        options={[["Summer", "Summer"], ["Winter", "Winter"], ["Spring", "Spring"], ["Fall", "Fall"]]}
+                      />
+                      <Select
+                        label="Paper"
+                        value={assignmentForm.paperName}
+                        onChange={(value) => setAssignmentForm({ ...assignmentForm, paperName: value })}
+                        options={["1", "2", "1(core)", "2(extended)", "3", "4", "5", "6"].map((paper) => [paper, paper])}
+                      />
+                      <Select
+                        label="Variant"
+                        value={assignmentForm.variant}
+                        onChange={(value) => setAssignmentForm({ ...assignmentForm, variant: value })}
+                        options={[["1", "1"], ["2", "2"], ["3", "3"]]}
+                      />
+                    </>
+                  ) : (
+                    <label className="space-y-1 lg:col-span-2">
+                      <span className="text-xs font-black uppercase tracking-wide text-slate-500">Question paper file</span>
+                      <input type="file" accept=".pdf,image/*" onChange={(event) => setAssignmentFile(event.target.files?.[0] || null)} className="w-full rounded-lg border border-slate-200 p-3 text-sm" />
+                    </label>
+                  )}
                   <label className="space-y-1 lg:col-span-3">
                     <span className="text-xs font-black uppercase tracking-wide text-slate-500">Instructions</span>
                     <textarea value={assignmentForm.instructions} onChange={(event) => setAssignmentForm({ ...assignmentForm, instructions: event.target.value })} className="h-24 w-full rounded-lg border border-slate-200 p-3 text-sm" />

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   BarChart3,
@@ -94,6 +94,7 @@ const Admin = () => {
   const [activeModal, setActiveModal] = useState(null);
   const [tempData, setTempData] = useState({ name: "", link: "", boardId: "" });
   const [assignmentFile, setAssignmentFile] = useState(null);
+  const [assignmentSubjects, setAssignmentSubjects] = useState([]);
   const [assignmentSaving, setAssignmentSaving] = useState(false);
   const [teacherData, setTeacherData] = useState({ teachers: [], assignments: [] });
   const [teacherRemarks, setTeacherRemarks] = useState([]);
@@ -126,6 +127,72 @@ const Admin = () => {
   const contentMap = summary?.contentMap || [];
   const plans = summary?.plans || [];
   const activePlans = plans.filter((plan) => plan.isActive);
+  const currentYear = new Date().getFullYear();
+  const fallbackYearOptions = useMemo(
+    () => Array.from({ length: currentYear - 2009 }, (_, index) => String(currentYear - index)),
+    [currentYear]
+  );
+
+  const assignmentClassOptions = useMemo(() => {
+    const classes = new Set();
+
+    teacherData.assignments
+      .filter((entry) => !assignmentForm.board || entry.board === assignmentForm.board)
+      .forEach((entry) => {
+        (entry.classes || []).forEach((classEntry) => {
+          const className = typeof classEntry === "string" ? classEntry : classEntry?.className;
+          if (className) classes.add(String(className));
+        });
+      });
+
+    recentUsers
+      .filter((user) => !assignmentForm.board || !user.board || user.board === assignmentForm.board)
+      .forEach((user) => {
+        if (user.studentClass) classes.add(String(user.studentClass));
+      });
+
+    return Array.from(classes).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  }, [assignmentForm.board, recentUsers, teacherData.assignments]);
+
+  const assignmentSubjectOptions = useMemo(() => {
+    const subjectsById = new Map();
+    const addSubject = (subject) => {
+      const name = typeof subject === "string" ? subject : subject?.name;
+      const id = typeof subject === "string" ? subject : subject?._id || name;
+      if (name) subjectsById.set(id, { _id: id, name });
+    };
+
+    assignmentSubjects.forEach(addSubject);
+    contentMap
+      .find((board) => board.name === assignmentForm.board)
+      ?.subjects?.forEach(addSubject);
+
+    teacherData.assignments
+      .filter((entry) => !assignmentForm.board || entry.board === assignmentForm.board)
+      .forEach((entry) => {
+        (entry.classes || []).forEach((classEntry) => {
+          const className = typeof classEntry === "string" ? classEntry : classEntry?.className;
+          if (assignmentForm.className && String(className) !== String(assignmentForm.className)) return;
+          (classEntry?.subjects || []).forEach(addSubject);
+        });
+      });
+
+    return Array.from(subjectsById.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [assignmentForm.board, assignmentForm.className, assignmentSubjects, contentMap, teacherData.assignments]);
+
+  const assignmentYearOptions = useMemo(() => {
+    const years = new Set();
+    recentQuestions.forEach((question) => {
+      const boardName = question.topic?.subject?.board?.name || question.board;
+      const subjectName = question.topic?.subject?.name || question.subject;
+      if (assignmentForm.board && boardName && boardName !== assignmentForm.board) return;
+      if (assignmentForm.subject && subjectName && subjectName !== assignmentForm.subject) return;
+      if (question.year) years.add(String(question.year));
+    });
+
+    const values = Array.from(years).sort((a, b) => Number(b) - Number(a));
+    return values.length ? values : fallbackYearOptions;
+  }, [assignmentForm.board, assignmentForm.subject, fallbackYearOptions, recentQuestions]);
 
   const loadTeachers = useCallback(async () => {
     try {
@@ -160,6 +227,51 @@ const Admin = () => {
   useEffect(() => {
     loadDashboard();
   }, [loadDashboard]);
+
+  const handleAssignmentBoardChange = async (boardName) => {
+    setAssignmentForm((current) => ({
+      ...current,
+      board: boardName,
+      className: "",
+      subject: "",
+      year: "",
+      paperName: "",
+    }));
+    setAssignmentSubjects([]);
+
+    const selectedBoard = boards.find((board) => board.name === boardName);
+    if (!selectedBoard) return;
+
+    try {
+      const fetchedSubjects = await dispatch(fetchSubjects(selectedBoard._id)).unwrap();
+      setAssignmentSubjects(fetchedSubjects || []);
+    } catch (error) {
+      console.warn("Unable to load assignment subjects", error);
+    }
+  };
+
+  const handleAssignmentClassChange = (className) => {
+    const matchingAssignment = teacherData.assignments.find(
+      (entry) =>
+        (!assignmentForm.board || entry.board === assignmentForm.board) &&
+        (entry.classes || []).some((classEntry) => {
+          const savedClass = typeof classEntry === "string" ? classEntry : classEntry?.className;
+          return String(savedClass) === String(className);
+        })
+    );
+    const classEntry = matchingAssignment?.classes?.find((entry) => {
+      const savedClass = typeof entry === "string" ? entry : entry?.className;
+      return String(savedClass) === String(className);
+    });
+    const defaultSubject = classEntry?.subjects?.[0] || "";
+
+    setAssignmentForm((current) => ({
+      ...current,
+      className,
+      subject: defaultSubject,
+      year: "",
+    }));
+  };
 
   const updateRow = async (id, field, value) => {
     if (field === "board") {
@@ -815,7 +927,7 @@ const Admin = () => {
                       <span className="text-xs font-black uppercase tracking-wide text-slate-500">Board</span>
                       <select
                         value={assignmentForm.board}
-                        onChange={(event) => setAssignmentForm({ ...assignmentForm, board: event.target.value })}
+                        onChange={(event) => handleAssignmentBoardChange(event.target.value)}
                         className="w-full rounded-lg border border-slate-200 p-3 text-sm"
                       >
                         <option value="">Select Board</option>
@@ -827,22 +939,30 @@ const Admin = () => {
 
                     <label className="space-y-1">
                       <span className="text-xs font-black uppercase tracking-wide text-slate-500">Class</span>
-                      <input
+                      <select
                         value={assignmentForm.className}
-                        onChange={(event) => setAssignmentForm({ ...assignmentForm, className: event.target.value })}
+                        onChange={(event) => handleAssignmentClassChange(event.target.value)}
                         className="w-full rounded-lg border border-slate-200 p-3 text-sm"
-                        placeholder="10"
-                      />
+                      >
+                        <option value="">Select Class</option>
+                        {assignmentClassOptions.map((className) => (
+                          <option key={className} value={className}>Grade {className}</option>
+                        ))}
+                      </select>
                     </label>
 
                     <label className="space-y-1">
                       <span className="text-xs font-black uppercase tracking-wide text-slate-500">Subject</span>
-                      <input
+                      <select
                         value={assignmentForm.subject}
-                        onChange={(event) => setAssignmentForm({ ...assignmentForm, subject: event.target.value })}
+                        onChange={(event) => setAssignmentForm({ ...assignmentForm, subject: event.target.value, year: "" })}
                         className="w-full rounded-lg border border-slate-200 p-3 text-sm"
-                        placeholder="Physics 0625"
-                      />
+                      >
+                        <option value="">Select Subject</option>
+                        {assignmentSubjectOptions.map((subject) => (
+                          <option key={subject._id || subject.name} value={subject.name}>{subject.name}</option>
+                        ))}
+                      </select>
                     </label>
 
                     <label className="space-y-1">
@@ -859,12 +979,16 @@ const Admin = () => {
                       <>
                         <label className="space-y-1">
                           <span className="text-xs font-black uppercase tracking-wide text-slate-500">Year</span>
-                          <input
+                          <select
                             value={assignmentForm.year}
                             onChange={(event) => setAssignmentForm({ ...assignmentForm, year: event.target.value })}
                             className="w-full rounded-lg border border-slate-200 p-3 text-sm"
-                            placeholder="2025"
-                          />
+                          >
+                            <option value="">Select Year</option>
+                            {assignmentYearOptions.map((year) => (
+                              <option key={year} value={year}>{year}</option>
+                            ))}
+                          </select>
                         </label>
                         <label className="space-y-1">
                           <span className="text-xs font-black uppercase tracking-wide text-slate-500">Season</span>

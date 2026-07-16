@@ -8,6 +8,7 @@ import {
 import { useDispatch, useSelector } from "react-redux";
 import { fetchUser, updateUser } from '../features/user/userSlice';
 import { useAuth, useUser } from '@clerk/react';
+import { Link } from 'react-router-dom';
 import Logo from "../assets/Aurethia_logo.avif"
 import API from '../api/axios';
 const UserDashboard = () => {
@@ -349,9 +350,9 @@ const UserDashboard = () => {
                         </div>
 
                         {exam.type === "quiz" ? (
-                          <a href="/quiz" className="rounded-2xl bg-indigo-600 px-5 py-3 text-center text-xs font-black uppercase tracking-widest text-white">
+                          <Link to="/quiz" className="rounded-2xl bg-indigo-600 px-5 py-3 text-center text-xs font-black uppercase tracking-widest text-white">
                             Start Quiz
-                          </a>
+                          </Link>
                         ) : (
                           <a
                             href={`${API.defaults.baseURL?.replace("/api", "")}${exam.questionPaper?.path}`}

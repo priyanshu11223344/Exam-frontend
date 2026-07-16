@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useClerk, useUser } from '@clerk/react';
 import { useSelector } from 'react-redux';
 import logo from  "../assets/Aurethia_logo.avif"
@@ -38,7 +38,7 @@ const Navbar = () => {
           <div className="hidden md:flex items-center space-x-6 text-sm font-medium text-slate-600">
             <a href="#" className="hover:text-indigo-600 transition-colors">Resources</a>
             <a href="#" className="hover:text-indigo-600 transition-colors">Syllabus</a>
-            <a href="/pricingPage" className="hover:text-indigo-600 transition-colors">Pricing</a>
+            <Link to="/pricingPage" className="hover:text-indigo-600 transition-colors">Pricing</Link>
 
             {/* Dashboard */}
             <button
