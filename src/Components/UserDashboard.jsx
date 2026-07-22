@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { 
   LayoutDashboard, BookOpen, Trophy, User, LogOut, 
   Clock, ChevronRight, Bell, Edit3, X, School, 
@@ -22,6 +22,8 @@ const UserDashboard = () => {
   const { signOut } = useClerk();
   const { user: clerkUser, isLoaded: isClerkLoaded } = useUser();
   const { user, loading, error } = useSelector((state) => state.user);
+  const getTokenRef = useRef(getToken);
+  getTokenRef.current = getToken;
   const activeTab = STUDENT_TAB_IDS.includes(tab) ? tab : "dashboard";
   
   // Modal & Form State
@@ -55,12 +57,6 @@ const UserDashboard = () => {
     .filter((submission) => submission.status === "graded")
     .sort((a, b) => new Date(b.gradedAt || b.updatedAt) - new Date(a.gradedAt || a.updatedAt))
     .slice(0, 5), [submissions]);
-
-  useEffect(() => { 
-    if (isClerkLoaded && clerkUser) {
-      dispatch(fetchUser({ getToken, clerkUser }));
-    }
-  }, [dispatch, getToken, isClerkLoaded, clerkUser]);
 
   // Keep form in sync with user data
   useEffect(() => {
@@ -97,7 +93,7 @@ const UserDashboard = () => {
       setExamLoading(true);
       setLoadError("");
       try {
-        const token = await getToken();
+        const token = await getTokenRef.current();
         const assignmentRequests = [];
         if (hasSchoolClass) assignmentRequests.push(API.get("/exams/assignments", {
             params: {
@@ -138,9 +134,9 @@ const UserDashboard = () => {
     };
 
     loadAssignments();
-  }, [getToken, refreshKey, user?.board, user?.email, user?.productType, user?.studentClass, user?.subscriptionScope?.board, user?.subscriptionScope?.subjects]);
+  }, [refreshKey, user?.board, user?.email, user?.productType, user?.studentClass, user?.subscriptionScope?.board, user?.subscriptionScope?.subjects]);
 
-  if (loading || !isClerkLoaded) {
+  if (!isClerkLoaded || (loading && !user)) {
     return (
       <div className="h-screen flex flex-col items-center justify-center bg-[#F8FAFC]">
         <div className="relative w-16 h-16">
@@ -152,7 +148,7 @@ const UserDashboard = () => {
     );
   }
 
-  if (error || !user) {
+  if (!user) {
     return (
       <div className="h-screen flex flex-col items-center justify-center bg-[#F8FAFC] px-6 text-center">
         <h1 className="text-2xl font-bold text-slate-900">Unable to prepare your dashboard</h1>
