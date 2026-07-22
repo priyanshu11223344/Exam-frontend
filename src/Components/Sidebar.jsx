@@ -68,42 +68,6 @@ const Sidebar = () => {
         </ul>
       </div>
 
-      {/* Build & Practice */}
-      <div className="mb-8">
-        <h3 className="text-sm font-semibold text-blue-200 mb-3 uppercase">
-          Build & Practice
-        </h3>
-        <ul className="space-y-2">
-          <li className="hover:bg-blue-800 p-2 rounded cursor-pointer">
-            Build Exam
-          </li>
-          <li className="hover:bg-blue-800 p-2 rounded cursor-pointer">
-            Build Question List
-          </li>
-          <li className="hover:bg-blue-800 p-2 rounded cursor-pointer">
-            Free Worksheet
-          </li>
-        </ul>
-      </div>
-
-      {/* AI Section */}
-      <div>
-        <h3 className="text-sm font-semibold text-blue-200 mb-3 uppercase">
-          exam-mate AI
-        </h3>
-        <ul className="space-y-2">
-          <li className="hover:bg-blue-800 p-2 rounded cursor-pointer">
-            AI Mock Exam
-          </li>
-          <li className="hover:bg-blue-800 p-2 rounded cursor-pointer">
-            AI Exam Prediction
-          </li>
-          <li className="hover:bg-blue-800 p-2 rounded cursor-pointer">
-            AI Revision Assistant
-          </li>
-        </ul>
-      </div>
-
     </aside>
   );
 };
