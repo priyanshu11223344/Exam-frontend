@@ -302,27 +302,27 @@ const UserDashboard = () => {
           </div>
         </header>
 
-        <div className="p-10 max-w-7xl mx-auto space-y-10">
+        <div className="mx-auto max-w-7xl space-y-7 p-6 lg:p-8 xl:p-10">
           {loadError && <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm font-bold text-rose-700"><span>{loadError}</span><button type="button" onClick={() => setRefreshKey((value) => value + 1)} className="rounded-lg bg-rose-600 px-4 py-2 text-xs text-white">Try again</button></div>}
           
           {/* --- PROFILE SECTION --- */}
-          {activeTab === "dashboard" && <section className="relative">
-            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-200/50 overflow-hidden relative">
-              <div className="absolute top-0 right-0 w-40 h-40 bg-indigo-50 rounded-bl-full -mr-16 -mt-16 opacity-40"></div>
+          {activeTab === "dashboard" && <section>
+            <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm lg:p-7">
+              <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-indigo-50"></div>
               
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 relative z-10">
-                <div className="flex items-center gap-6">
-                  <div className="w-20 h-20 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-xl shadow-indigo-200 ring-4 ring-indigo-50">
-                    <User size={36} strokeWidth={2} />
+              <div className="relative z-10 flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+                <div className="flex min-w-0 items-center gap-4">
+                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-200 ring-4 ring-indigo-50">
+                    <User size={30} strokeWidth={2} />
                   </div>
-                  <div>
-                    <h2 className="text-2xl font-black text-slate-900 tracking-tight">{user?.name}</h2>
-                    <div className="flex items-center gap-3 mt-1.5">
-                      <div className="flex items-center gap-1.5 text-slate-500 text-sm font-medium">
-                        <Mail size={14} className="text-indigo-400" /> {user?.email}
+                  <div className="min-w-0">
+                    <h2 className="truncate text-xl font-black tracking-tight text-slate-900">{user?.name}</h2>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <div className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-slate-500">
+                        <Mail size={14} className="shrink-0 text-indigo-400" /> <span className="truncate">{user?.email}</span>
                       </div>
-                      <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
-                      <div className="flex items-center gap-1 text-emerald-600 text-[10px] font-black uppercase">
+                      <span className="hidden h-1 w-1 rounded-full bg-slate-300 sm:block"></span>
+                      <div className="flex items-center gap-1 text-[10px] font-black uppercase text-emerald-600">
                         <ShieldCheck size={12} /> Verified Profile
                       </div>
                     </div>
@@ -331,13 +331,13 @@ const UserDashboard = () => {
 
                 <button 
                   onClick={() => { setProfileError(""); setIsModalOpen(true); }}
-                  className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-2xl font-bold text-sm hover:bg-indigo-600 hover:-translate-y-1 transition-all active:scale-95 shadow-lg"
+                  className="flex shrink-0 items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white shadow-md transition hover:bg-indigo-600 active:scale-95"
                 >
                   <Edit3 size={16} /> Edit Details
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-10">
+              <div className="relative z-10 mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
                 <DetailBox icon={<School size={18} />} label="School" value={user?.school} color="blue" />
                 <DetailBox icon={<GraduationCap size={18} />} label="Board" value={user?.board} color="indigo" />
                 <DetailBox icon={<Hash size={18} />} label="Class" value={user?.studentClass} color="purple" />
@@ -347,15 +347,25 @@ const UserDashboard = () => {
           </section>}
 
           {/* --- DASHBOARD GRID --- */}
-          {activeTab === "dashboard" && <><section className="mb-8 space-y-5">
-            <div><p className="text-xs font-black uppercase tracking-widest text-indigo-600">{user?.productType?.replaceAll("_", " ") || "Student workspace"}</p><h2 className="text-2xl font-black">Choose a subject</h2><p className="text-sm font-semibold text-slate-500">Open worksheets, assigned tests and checked work for each subject.</p></div>
-            {user?.productType && user.productType !== "free" && <div className="flex flex-wrap gap-3 rounded-2xl border border-indigo-100 bg-indigo-50 p-4">{["topical", "complete", "topical_builder"].includes(user.productType) && <Link to="/home" className="rounded-xl bg-indigo-600 px-5 py-3 text-sm font-black text-white">Open Topical Questions</Link>}{["test_series", "complete"].includes(user.productType) && <button onClick={() => goToTab("exams")} className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-black text-white">Open Test Series</button>}{user.productType === "topical_builder" && <Link to="/home" className="rounded-xl bg-violet-600 px-5 py-3 text-sm font-black text-white">Build a Custom PDF Test</Link>}</div>}
-            {subjectNames.length === 0 ? <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-6"><div><p className="font-black text-slate-800">No subjects assigned yet</p><p className="mt-1 text-sm text-slate-500">Complete your board and class first. Subjects assigned by the admin or teacher will sync here automatically.</p></div>{(!user?.board || !user?.studentClass) && <button type="button" onClick={() => { setProfileError(""); setIsModalOpen(true); }} className="rounded-xl bg-indigo-600 px-5 py-3 text-sm font-black text-white">Complete profile</button>}</div> : <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{subjectNames.map((subject) => <button key={subject} onClick={() => setSelectedSubject(subject)} className={`rounded-2xl border p-5 text-left shadow-sm transition ${activeSubject === subject ? "border-indigo-500 bg-indigo-600 text-white" : "border-slate-200 bg-white hover:border-indigo-300"}`}><BookOpen size={22} /><p className="mt-4 text-lg font-black">{subject}</p></button>)}</div>}
-            {activeSubject && <div className="grid gap-5 lg:grid-cols-3">
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 lg:col-span-2"><h3 className="flex items-center gap-2 font-black"><FileText size={18} />Worksheets & content</h3><div className="mt-4 space-y-3">{classroomResources.filter((item) => item.subject === activeSubject).map((resource) => <div key={resource._id} className="rounded-xl bg-slate-50 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-black">{resource.title}</p><p className="text-sm text-slate-500">{resource.description || "Class resource"}</p><p className="mt-1 text-xs font-bold text-rose-600">Deadline: {new Date(resource.deadline).toLocaleString()}</p></div><a href={resource.driveUrl} target="_blank" rel="noreferrer" className="rounded-lg bg-slate-950 px-4 py-2 text-xs font-black text-white">Open <ExternalLink size={13} className="ml-1 inline" /></a></div></div>)}{!classroomResources.some((item) => item.subject === activeSubject) && <p className="text-sm text-slate-500">No worksheets uploaded for this subject yet.</p>}</div></div>
+          {activeTab === "dashboard" && <><section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm lg:p-7">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-widest text-indigo-600">{user?.productType?.replaceAll("_", " ") || "Student workspace"}</p>
+                <h2 className="mt-1 text-2xl font-black text-slate-900">Choose a subject</h2>
+                <p className="mt-1 text-sm font-semibold text-slate-500">Open worksheets, assigned tests and checked work for each subject.</p>
+              </div>
+              {user?.productType && user.productType !== "free" && <div className="flex flex-wrap gap-2">{["topical", "complete", "topical_builder"].includes(user.productType) && <Link to="/home" className="rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-black text-white shadow-sm hover:bg-indigo-700">Open Topical Questions</Link>}{["test_series", "complete"].includes(user.productType) && <button onClick={() => goToTab("exams")} className="rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-black text-white">Open Test Series</button>}{user.productType === "topical_builder" && <Link to="/home" className="rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-black text-white">Build a Custom PDF Test</Link>}</div>}
+            </div>
+
+            <div className="mt-6 border-t border-slate-100 pt-5">
+              {subjectNames.length === 0 ? <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-slate-50 p-5"><div><p className="font-black text-slate-800">No subjects assigned yet</p><p className="mt-1 text-sm text-slate-500">Complete your board and class first. Subjects assigned by the admin or teacher will sync here automatically.</p></div>{(!user?.board || !user?.studentClass) && <button type="button" onClick={() => { setProfileError(""); setIsModalOpen(true); }} className="rounded-xl bg-indigo-600 px-5 py-3 text-sm font-black text-white">Complete profile</button>}</div> : <div className="flex flex-wrap gap-3">{subjectNames.map((subject) => <button key={subject} onClick={() => setSelectedSubject(subject)} className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-4 text-left transition sm:w-64 ${activeSubject === subject ? "border-indigo-600 bg-indigo-600 text-white shadow-lg shadow-indigo-100" : "border-slate-200 bg-slate-50 text-slate-800 hover:border-indigo-300 hover:bg-white"}`}><span className={`rounded-xl p-2 ${activeSubject === subject ? "bg-white/15" : "bg-white text-indigo-600"}`}><BookOpen size={20} /></span><p className="font-black">{subject}</p></button>)}</div>}
+            </div>
+
+            {activeSubject && <div className={`mt-5 grid gap-4 ${user?.features?.includes("mcq") ? "lg:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)]" : "grid-cols-1"}`}>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5"><h3 className="flex items-center gap-2 font-black text-slate-900"><FileText size={18} className="text-indigo-600" />Worksheets & content</h3><div className="mt-4 space-y-3">{classroomResources.filter((item) => item.subject === activeSubject).map((resource) => <div key={resource._id} className="rounded-xl border border-slate-200 bg-white p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-black">{resource.title}</p><p className="text-sm text-slate-500">{resource.description || "Class resource"}</p><p className="mt-1 text-xs font-bold text-rose-600">Deadline: {new Date(resource.deadline).toLocaleString()}</p></div><a href={resource.driveUrl} target="_blank" rel="noreferrer" className="rounded-lg bg-slate-950 px-4 py-2 text-xs font-black text-white">Open <ExternalLink size={13} className="ml-1 inline" /></a></div></div>)}{!classroomResources.some((item) => item.subject === activeSubject) && <div className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-6 text-center text-sm font-medium text-slate-500">No worksheets uploaded for this subject yet.</div>}</div></div>
               {user?.features?.includes("mcq") && <div className="rounded-2xl border border-violet-200 bg-violet-50 p-5"><Sparkles className="text-violet-600" /><h3 className="mt-3 text-lg font-black">Special Test for Me</h3><p className="mt-1 text-sm text-slate-600">Start a timed MCQ test using the marking scheme in the question database.</p><Link to="/quiz" className="mt-5 block rounded-xl bg-violet-600 px-4 py-3 text-center text-sm font-black text-white"><PlayCircle size={16} className="mr-2 inline" />Start test</Link></div>}
             </div>}
-          </section><div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+          </section><div className="grid grid-cols-1 gap-7 lg:grid-cols-3">
             
             {/* Left Col: Upcoming Exams */}
             <div className="lg:col-span-2 space-y-6">
@@ -676,7 +686,7 @@ const DetailBox = ({ icon, label, value, color }) => {
     rose: "bg-rose-50 text-rose-600 border-rose-100",
   };
   return (
-    <div className={`p-4 rounded-2xl border ${themes[color]} flex items-center gap-3 transition-all hover:shadow-md cursor-default`}>
+    <div className={`flex min-h-16 items-center gap-3 rounded-xl border p-3.5 ${themes[color]} cursor-default transition-all hover:shadow-sm`}>
       <div className="opacity-80">{icon}</div>
       <div className="min-w-0">
         <p className="text-[9px] font-black uppercase tracking-widest opacity-60 mb-0.5 leading-none">{label}</p>
