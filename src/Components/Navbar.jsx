@@ -50,7 +50,7 @@ const Navbar = () => {
             
               const role = user?.publicMetadata?.role || backendRole;
             
-              if (role === "admin") {
+              if (role === "admin" || role === "staff") {
                 navigate("/admin/overview");
               } else if (role === "teacher") {
                 navigate("/TeacherDashboard/overview");

@@ -68,6 +68,32 @@ const ADMIN_SECTION_IDS = [
   "links",
 ];
 
+const ADMIN_PERMISSION_OPTIONS = [
+  ["overview", "Overview and system metrics"],
+  ["content", "Content map management"],
+  ["questions", "Question bank management"],
+  ["assignments", "Assignment publishing"],
+  ["teachers", "Teacher assignments"],
+  ["remarks", "Teacher remarks"],
+  ["students", "Student records"],
+  ["plans", "Plans and pricing"],
+  ["links", "Connected app links"],
+  ["users_manage", "Create users and admin staff"],
+];
+const EMPTY_ADMIN_PERMISSIONS = [];
+const EMPTY_LIST = [];
+
+const emptyNewUser = (role = "user") => ({
+  name: "",
+  email: "",
+  temporaryPassword: "",
+  role,
+  board: "",
+  school: "",
+  studentClass: "",
+  adminPermissions: [],
+});
+
 const formatDate = (value) => {
   if (!value) return "Not set";
   return new Intl.DateTimeFormat("en-IN", {
@@ -112,6 +138,7 @@ const Admin = () => {
   const fileInputRef = useRef(null);
   const { boards = [] } = useSelector((state) => state.boards);
   const { subjects = [] } = useSelector((state) => state.subjects);
+  const { user: signedInUser, role: signedInRole } = useSelector((state) => state.user);
 
   const activeSection = ADMIN_SECTION_IDS.includes(section) ? section : "overview";
   const [questionMode, setQuestionMode] = useState("manual");
@@ -142,6 +169,9 @@ const Admin = () => {
     planExpiry: "",
   });
   const [studentSaving, setStudentSaving] = useState(false);
+  const [addUserOpen, setAddUserOpen] = useState(false);
+  const [newUser, setNewUser] = useState(emptyNewUser());
+  const [newUserSaving, setNewUserSaving] = useState(false);
   const [teacherData, setTeacherData] = useState({ teachers: [], assignments: [] });
   const [teacherRemarks, setTeacherRemarks] = useState([]);
   const [teacherSaving, setTeacherSaving] = useState(false);
@@ -172,10 +202,17 @@ const Admin = () => {
   });
 
   const counts = summary?.counts || {};
-  const recentQuestions = summary?.recentQuestions || [];
-  const recentUsers = summary?.recentUsers || [];
-  const contentMap = summary?.contentMap || [];
-  const plans = summary?.plans || [];
+  const isSuperAdmin = signedInRole === "admin";
+  const staffPermissions = signedInUser?.adminPermissions || EMPTY_ADMIN_PERMISSIONS;
+  const can = useCallback(
+    (permission) => isSuperAdmin || staffPermissions.includes(permission),
+    [isSuperAdmin, staffPermissions]
+  );
+  const canManageUsers = can("users_manage");
+  const recentQuestions = summary?.recentQuestions || EMPTY_LIST;
+  const recentUsers = summary?.recentUsers || EMPTY_LIST;
+  const contentMap = summary?.contentMap || EMPTY_LIST;
+  const plans = summary?.plans || EMPTY_LIST;
   const activePlans = plans.filter((plan) => plan.isActive);
   const proPlan = activePlans.find((plan) => plan.name?.toLowerCase() === "pro");
   const planSelectOptions = useMemo(() => {
@@ -193,9 +230,10 @@ const Admin = () => {
     [currentYear]
   );
   const allStudents = useMemo(
-    () => adminUsers.filter((user) => user.role !== "admin" && user.role !== "teacher"),
+    () => adminUsers.filter((user) => user.role === "user"),
     [adminUsers]
   );
+  const adminStaff = useMemo(() => adminUsers.filter((user) => user.role === "staff"), [adminUsers]);
   const studentBoardOptions = useMemo(
     () =>
       Array.from(new Set(allStudents.map((student) => student.board).filter(Boolean))).sort((a, b) =>
@@ -280,7 +318,7 @@ const Admin = () => {
 
   const assignmentStudentOptions = useMemo(() => {
     return adminUsers
-      .filter((user) => user.role !== "admin" && user.role !== "teacher")
+      .filter((user) => user.role === "user")
       .filter((user) => !assignmentForm.board || !user.board || user.board === assignmentForm.board)
       .filter((user) => !assignmentForm.className || String(user.studentClass || "") === String(assignmentForm.className))
       .sort((a, b) => (a.name || a.email || "").localeCompare(b.name || b.email || ""));
@@ -301,37 +339,39 @@ const Admin = () => {
   }, [assignmentForm.board, assignmentForm.subject, fallbackYearOptions, recentQuestions]);
 
   const loadTeachers = useCallback(async () => {
-    try {
-      const [teacherRes, remarksRes] = await Promise.all([
-        API.get("/admin/teachers"),
-        API.get("/admin/teacher-remarks"),
-      ]);
-      setTeacherData(teacherRes.data.data || { teachers: [], assignments: [] });
-      setTeacherRemarks(remarksRes.data.data || []);
-    } catch (error) {
-      console.warn("Unable to load teacher data", error);
+    const requests = [];
+    if (can("teachers") || can("assignments") || canManageUsers) {
+      requests.push(API.get("/admin/teachers").then((response) => {
+        setTeacherData(response.data.data || { teachers: [], assignments: [] });
+      }));
     }
-  }, []);
+    if (can("remarks")) {
+      requests.push(API.get("/admin/teacher-remarks").then((response) => {
+        setTeacherRemarks(response.data.data || []);
+      }));
+    }
+    await Promise.all(requests).catch((error) => console.warn("Unable to load teacher data", error));
+  }, [can, canManageUsers]);
 
   const loadDashboard = useCallback(async () => {
     setSummaryLoading(true);
     setSummaryError("");
     try {
-      const [dashboardRes] = await Promise.all([
-        API.get("/admin/dashboard-summary"),
-        dispatch(fetchBoards()),
-      ]);
+      await dispatch(fetchBoards());
+      const dashboardRes = await API.get("/admin/dashboard-summary");
       setSummary(dashboardRes.data.data);
-      API.get("/admin/users")
-        .then((response) => setAdminUsers(response.data.data || []))
-        .catch((error) => console.warn("Unable to load students", error));
+      if (can("students") || can("teachers") || canManageUsers) {
+        API.get("/admin/users")
+          .then((response) => setAdminUsers(response.data.data || []))
+          .catch((error) => console.warn("Unable to load users", error));
+      }
       loadTeachers();
     } catch (error) {
       setSummaryError(error.response?.data?.error || "Unable to load admin dashboard");
     } finally {
       setSummaryLoading(false);
     }
-  }, [dispatch, loadTeachers]);
+  }, [can, canManageUsers, dispatch, loadTeachers]);
 
   useEffect(() => {
     loadDashboard();
@@ -637,6 +677,40 @@ const Admin = () => {
     }
   };
 
+  const openAddUser = (role) => {
+    setNewUser(emptyNewUser(role));
+    setAddUserOpen(true);
+  };
+
+  const handleCreateUser = async (event) => {
+    event.preventDefault();
+    if (!newUser.name.trim() || !newUser.email.trim() || newUser.temporaryPassword.length < 8) {
+      alert("Enter a name, valid email and temporary password of at least 8 characters.");
+      return;
+    }
+    if (newUser.role === "user" && (!newUser.board || !newUser.studentClass)) {
+      alert("Board and class are compulsory for student accounts.");
+      return;
+    }
+    if (newUser.role === "staff" && newUser.adminPermissions.length === 0) {
+      alert("Select at least one permission for admin staff.");
+      return;
+    }
+
+    setNewUserSaving(true);
+    try {
+      const response = await API.post("/admin/users", newUser);
+      setAddUserOpen(false);
+      setNewUser(emptyNewUser());
+      await loadDashboard();
+      alert(response.data.message || "User account created.");
+    } catch (error) {
+      alert(error.response?.data?.error || "Unable to create user account.");
+    } finally {
+      setNewUserSaving(false);
+    }
+  };
+
   const openStudentDrawer = (student) => {
     setSelectedStudent(student);
     setStudentForm({
@@ -706,7 +780,7 @@ const Admin = () => {
     }
   };
 
-  const sections = [
+  const sections = useMemo(() => [
     { id: "overview", label: "Overview", icon: LayoutDashboard },
     { id: "content", label: "Content Map", icon: Boxes },
     { id: "questions", label: "Question Bank", icon: FileQuestion },
@@ -716,7 +790,13 @@ const Admin = () => {
     { id: "students", label: "Students", icon: Users },
     { id: "plans", label: "Plans", icon: WalletCards },
     { id: "links", label: "App Links", icon: LinkIcon },
-  ];
+  ].filter((item) => can(item.id) || (canManageUsers && ["teachers", "students"].includes(item.id))), [can, canManageUsers]);
+
+  useEffect(() => {
+    if (sections.length && !sections.some((item) => item.id === activeSection)) {
+      navigate(`/admin/${sections[0].id}`, { replace: true });
+    }
+  }, [activeSection, navigate, sections]);
 
   const goToSection = (sectionId) => {
     navigate(`/admin/${sectionId}`);
@@ -764,7 +844,9 @@ const Admin = () => {
           <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 px-4 py-4 backdrop-blur md:px-8">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Signed in as admin</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Signed in as {isSuperAdmin ? "super admin" : "admin staff"}
+                </p>
                 <h2 className="text-2xl font-black">Operations Dashboard</h2>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -774,24 +856,24 @@ const Admin = () => {
                 >
                   <RefreshCw size={16} /> Refresh
                 </button>
-                <Link
+                {isSuperAdmin && <Link
                   to="/home"
                   className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-bold text-white hover:bg-blue-700"
                 >
                   <Home size={16} /> Student App
-                </Link>
-                <Link
+                </Link>}
+                {isSuperAdmin && <Link
                   to="/UserDashboard/dashboard"
                   className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-bold text-white hover:bg-emerald-700"
                 >
                   <GraduationCap size={16} /> Student Dashboard
-                </Link>
-                <Link
+                </Link>}
+                {isSuperAdmin && <Link
                   to="/TeacherDashboard/overview"
                   className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-3 py-2 text-sm font-bold text-white hover:bg-violet-700"
                 >
                   <GraduationCap size={16} /> Teacher Dashboard
-                </Link>
+                </Link>}
               </div>
             </div>
 
@@ -1223,12 +1305,19 @@ const Admin = () => {
 
         {activeSection === "teachers" && (
           <section className="space-y-6">
-            <div>
-              <h3 className="text-xl font-black">Teachers</h3>
-                  <p className="text-sm text-slate-500">Assign teachers to boards and classes. Teachers can publish papers, schedule classes and manage students in those classes.</p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h3 className="text-xl font-black">Teachers</h3>
+                <p className="text-sm text-slate-500">Assign teachers to boards and classes. Teachers can publish papers, schedule classes and manage students in those classes.</p>
+              </div>
+              {canManageUsers && (
+                <button type="button" onClick={() => openAddUser("teacher")} className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 py-3 text-sm font-black text-white">
+                  <Plus size={17} /> Add User
+                </button>
+              )}
                 </div>
 
-                <form onSubmit={handleTeacherAssign} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+                {can("teachers") && <form onSubmit={handleTeacherAssign} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
                   <div className="grid gap-4 lg:grid-cols-5">
                     <label className="space-y-1 lg:col-span-2">
                       <span className="text-xs font-black uppercase tracking-wide text-slate-500">Existing User</span>
@@ -1244,7 +1333,7 @@ const Admin = () => {
                           });
                         }}
                         placeholder="Select user or enter email below"
-                        options={recentUsers.map((user) => [user._id, `${user.name || "User"} - ${user.email}`])}
+                        options={recentUsers.filter((user) => ["user", "teacher"].includes(user.role)).map((user) => [user._id, `${user.name || "User"} - ${user.email}`])}
                       />
                     </label>
                     <label className="space-y-1">
@@ -1298,7 +1387,7 @@ const Admin = () => {
                       {teacherSaving ? "Saving..." : "Assign Teacher"}
                     </button>
                   </div>
-                </form>
+                </form>}
 
                 <div className="grid gap-4 xl:grid-cols-2">
                   {teacherData.assignments.length === 0 && (
@@ -1334,6 +1423,33 @@ const Admin = () => {
                     );
                   })}
                 </div>
+
+                {canManageUsers && (
+                  <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
+                    <div className="border-b border-slate-200 p-4">
+                      <h4 className="font-black">Admin Staff</h4>
+                      <p className="text-sm text-slate-500">Subordinate accounts have only the permissions selected by a super admin.</p>
+                    </div>
+                    <div className="divide-y divide-slate-100">
+                      {adminStaff.length === 0 && <p className="p-4 text-sm text-slate-500">No admin staff accounts yet.</p>}
+                      {adminStaff.map((staff) => (
+                        <div key={staff._id} className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
+                          <div>
+                            <p className="font-black">{staff.name || "Admin Staff"}</p>
+                            <p className="text-sm text-slate-500">{staff.email}</p>
+                          </div>
+                          <div className="flex max-w-2xl flex-wrap gap-2">
+                            {(staff.adminPermissions || []).map((permission) => (
+                              <span key={permission} className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-black text-indigo-700">
+                                {ADMIN_PERMISSION_OPTIONS.find(([id]) => id === permission)?.[1] || permission}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </section>
             )}
 
@@ -1395,7 +1511,12 @@ const Admin = () => {
                     <h3 className="text-xl font-black">Students</h3>
                     <p className="text-sm text-slate-500">Learners, profile details and subscription status</p>
                   </div>
-                  <div className="grid gap-3 md:grid-cols-4 xl:w-[920px]">
+                  <div className="grid gap-3 md:grid-cols-5 xl:w-[1060px]">
+                    {canManageUsers && (
+                      <button type="button" onClick={() => openAddUser("user")} className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 py-3 text-sm font-black text-white">
+                        <Plus size={17} /> Add User
+                      </button>
+                    )}
                     <label className="relative md:col-span-1">
                       <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input
@@ -1692,6 +1813,85 @@ const Admin = () => {
               </form>
             </div>
           </aside>
+        </div>
+      )}
+
+      {addUserOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/55 p-4">
+          <form onSubmit={handleCreateUser} className="my-auto w-full max-w-2xl rounded-xl bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-200 p-6">
+              <div>
+                <p className="text-xs font-black uppercase tracking-wide text-indigo-600">Role-based account</p>
+                <h3 className="mt-1 text-2xl font-black">Add User</h3>
+                <p className="mt-1 text-sm text-slate-500">Create a login and assign only the access this person needs.</p>
+              </div>
+              <button type="button" onClick={() => setAddUserOpen(false)} className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:bg-slate-50" aria-label="Close add user dialog">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="grid max-h-[68vh] gap-4 overflow-y-auto p-6 md:grid-cols-2">
+              <label className="space-y-1 md:col-span-2">
+                <span className="text-xs font-black uppercase tracking-wide text-slate-500">Account role</span>
+                <select value={newUser.role} onChange={(event) => setNewUser(emptyNewUser(event.target.value))} className="w-full rounded-lg border border-slate-200 bg-white p-3 text-sm font-semibold outline-none focus:border-indigo-400">
+                  <option value="user">Student</option>
+                  <option value="teacher">Teacher</option>
+                  <option value="staff">Admin Staff</option>
+                </select>
+              </label>
+              <label className="space-y-1">
+                <span className="text-xs font-black uppercase tracking-wide text-slate-500">Full name</span>
+                <input required value={newUser.name} onChange={(event) => setNewUser({ ...newUser, name: event.target.value })} className="w-full rounded-lg border border-slate-200 p-3 text-sm outline-none focus:border-indigo-400" />
+              </label>
+              <label className="space-y-1">
+                <span className="text-xs font-black uppercase tracking-wide text-slate-500">Email</span>
+                <input required type="email" value={newUser.email} onChange={(event) => setNewUser({ ...newUser, email: event.target.value })} className="w-full rounded-lg border border-slate-200 p-3 text-sm outline-none focus:border-indigo-400" />
+              </label>
+              <label className="space-y-1 md:col-span-2">
+                <span className="text-xs font-black uppercase tracking-wide text-slate-500">Temporary password</span>
+                <input required minLength="8" type="password" autoComplete="new-password" value={newUser.temporaryPassword} onChange={(event) => setNewUser({ ...newUser, temporaryPassword: event.target.value })} className="w-full rounded-lg border border-slate-200 p-3 text-sm outline-none focus:border-indigo-400" />
+                <p className="text-xs text-slate-500">Minimum 8 characters. Share it securely and ask the user to change it after login.</p>
+              </label>
+
+              {newUser.role === "user" && (
+                <>
+                  <SearchableSelect label="Board" value={newUser.board} onChange={(value) => setNewUser({ ...newUser, board: value })} placeholder="Select Board" options={boards.map((board) => [board.name, board.name])} />
+                  <SearchableSelect label="Class" value={newUser.studentClass} onChange={(value) => setNewUser({ ...newUser, studentClass: value })} placeholder="Select Class" options={Array.from({ length: 12 }, (_, index) => [String(index + 1), `Grade ${index + 1}`])} />
+                  <label className="space-y-1 md:col-span-2">
+                    <span className="text-xs font-black uppercase tracking-wide text-slate-500">School (optional)</span>
+                    <input value={newUser.school} onChange={(event) => setNewUser({ ...newUser, school: event.target.value })} className="w-full rounded-lg border border-slate-200 p-3 text-sm outline-none focus:border-indigo-400" />
+                  </label>
+                </>
+              )}
+
+              {newUser.role === "staff" && (
+                <fieldset className="md:col-span-2">
+                  <legend className="text-xs font-black uppercase tracking-wide text-slate-500">Staff permissions</legend>
+                  <p className="mt-1 text-sm text-slate-500">These are enforced by the API, not only hidden in the menu.</p>
+                  <div className="mt-3 grid gap-2 md:grid-cols-2">
+                    {ADMIN_PERMISSION_OPTIONS.map(([id, label]) => (
+                      <label key={id} className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 p-3 hover:bg-slate-50">
+                        <input type="checkbox" checked={newUser.adminPermissions.includes(id)} onChange={(event) => setNewUser({
+                          ...newUser,
+                          adminPermissions: event.target.checked
+                            ? [...newUser.adminPermissions, id]
+                            : newUser.adminPermissions.filter((permission) => permission !== id),
+                        })} className="mt-1 h-4 w-4 accent-indigo-600" />
+                        <span className="text-sm font-bold text-slate-700">{label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 border-t border-slate-200 p-6">
+              <button type="button" onClick={() => setAddUserOpen(false)} className="rounded-lg border border-slate-200 px-5 py-3 text-sm font-bold text-slate-700">Cancel</button>
+              <button type="submit" disabled={newUserSaving} className="rounded-lg bg-slate-950 px-5 py-3 text-sm font-black text-white disabled:bg-slate-300">
+                {newUserSaving ? "Creating..." : "Create Account"}
+              </button>
+            </div>
+          </form>
         </div>
       )}
 

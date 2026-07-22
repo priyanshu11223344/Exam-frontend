@@ -22,7 +22,7 @@ const AdminProtected = ({ children }) => {
   const role = clerkRole || backendRole || "user";
 
   // ❌ Not admin
-  if (role !== "admin") {
+  if (!["admin", "staff"].includes(role)) {
     
     return <Navigate to="/home" />;
   }

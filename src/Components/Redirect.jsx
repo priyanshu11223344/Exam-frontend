@@ -29,9 +29,7 @@ const RedirectPage = () => {
   if (lastRoute && lastPath) {
     const isAdminRoute = lastPath === "/admin" || lastPath.startsWith("/admin/");
     const isTeacherRoute = lastPath === "/TeacherDashboard" || lastPath.startsWith("/TeacherDashboard/");
-    const isStudentRoute = lastPath === "/UserDashboard" || lastPath.startsWith("/UserDashboard/");
-
-    if (role === "admin" && !isStudentRoute && lastPath !== "/home") {
+    if ((role === "admin" || role === "staff") && isAdminRoute) {
       return <Navigate to={lastRoute} replace />;
     }
 
@@ -41,6 +39,7 @@ const RedirectPage = () => {
 
     if (
       role !== "admin" &&
+      role !== "staff" &&
       role !== "teacher" &&
       !isAdminRoute &&
       !isTeacherRoute
@@ -49,7 +48,7 @@ const RedirectPage = () => {
     }
   }
 
-  if (role === "admin") {
+  if (role === "admin" || role === "staff") {
     return <Navigate to="/admin/overview" replace />;
   }
 
