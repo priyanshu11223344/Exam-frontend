@@ -9,7 +9,8 @@ import { setQuizData } from '../../features/quiz/quizSlice.js';
 import { fetchSubjects } from '../../features/subject/subjectSlice.js';
 import API from '../../api/axios.js';
 import toast from 'react-hot-toast';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '@clerk/react';
 const Quiz = () => {
   // Replace 'papers' with your quiz state slice
   const { quizzes = [], loading } = useSelector(state => state.quizzes || {});
@@ -20,12 +21,33 @@ const Quiz = () => {
   const [hasSearched, setHasSearched] = useState(() => Boolean(sessionStorage.getItem("quizData")));
   const dispatch=useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { getToken } = useAuth();
+  const currentUser = useSelector((state) => state.user.user);
+  const assignedTest = location.state?.assignment || null;
   useEffect(()=>{
+    if (assignedTest) return;
     const savedQuiz=sessionStorage.getItem("quizData");
     if(savedQuiz){
       dispatch(setQuizData(JSON.parse(savedQuiz)))
     }
-  },[dispatch]);
+  },[assignedTest, dispatch]);
+  useEffect(() => {
+    if (!assignedTest) return;
+    const config = assignedTest.quizConfig || {};
+    API.get("/quiz", { params: {
+      board: assignedTest.board,
+      subject: assignedTest.subject,
+      year: config.year,
+      season: config.season,
+      paperName: config.paperName,
+      variant: config.variant,
+      assignmentId: assignedTest._id,
+    } }).then((response) => {
+      dispatch(setQuizData(response.data.questions || []));
+      setHasSearched(true);
+    }).catch(() => toast.error("Unable to load this assigned test."));
+  }, [assignedTest, dispatch]);
   useEffect(()=>{
     if(filters.boardId){
       dispatch(fetchSubjects(filters.boardId));
@@ -35,7 +57,7 @@ const Quiz = () => {
     (s)=>s._id===filters.subjectId
   );
   useEffect(() => {
-    if (role === "admin") return;
+    if (role === "admin" || assignedTest) return;
 
     const checkAccess = async () => {
       try {
@@ -47,7 +69,24 @@ const Quiz = () => {
     };
   
     checkAccess();
-  }, [navigate, role]);
+  }, [assignedTest, navigate, role]);
+  const saveAssignedResult = async ({ correct, total, answers }) => {
+    if (!assignedTest) return;
+    try {
+      const token = await getToken();
+      await API.post(`/exams/assignments/${assignedTest._id}/quiz-result`, {
+        userEmail: currentUser?.email,
+        userName: currentUser?.name,
+        score: correct,
+        total,
+        answers,
+      }, { headers: { Authorization: `Bearer ${token}` } });
+      toast.success("Test result saved to your dashboard.");
+    } catch (error) {
+      toast.error(error.response?.data?.error || "Unable to save this test result.");
+      throw error;
+    }
+  };
   return (
     <div className="flex">
       <Sidebar />
@@ -58,19 +97,19 @@ const Quiz = () => {
         {/* Hero Header - Quiz Focused */}
         <div className="text-center mb-12 mt-8">
           <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-4 tracking-tight">
-            Test Your <span className="text-orange-600 underline decoration-orange-200 underline-offset-8">Knowledge</span>
+            {assignedTest ? assignedTest.title : <>Test Your <span className="text-orange-600 underline decoration-orange-200 underline-offset-8">Knowledge</span></>}
           </h1>
           <p className="text-lg text-slate-600 max-w-2xl mx-auto font-medium">
-            Challenge yourself with topical quizzes. Select your board and subject below to generate a custom practice session.
+            {assignedTest ? `${assignedTest.subject} • ${assignedTest.durationMinutes || 60} minute assigned test` : "Challenge yourself with topical quizzes. Select your board and subject below to generate a custom practice session."}
           </p>
         </div>
 
         {/* Reusing SearchForm - You can pass different props if needed */}
         <div className="mb-16">
-          <QuizSearchForm 
+          {!assignedTest && <QuizSearchForm
             onSearchSuccess={() => setHasSearched(true)} 
             placeholder="Search for a quiz topic..." 
-          />
+          />}
         </div>
 
         {/* Quiz Results Section */}
@@ -95,7 +134,7 @@ const Quiz = () => {
               ))}
             </div>
           ) : quizzes.length > 0 ? (
-             <QuizCard  resource={quizzes} subject={selectedSubject?.name || ""} />
+             <QuizCard resource={quizzes} subject={assignedTest?.subject || selectedSubject?.name || ""} durationMinutes={assignedTest?.durationMinutes || 60} onComplete={assignedTest ? saveAssignedResult : undefined} />
           ) : hasSearched ? (
             /* No Quizzes Found State */
             <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-slate-200">

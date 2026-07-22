@@ -19,7 +19,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 /* ================= MAIN COMPONENT ================= */
 
-export default function QuizCard({ resource, subject }) {
+export default function QuizCard({ resource, subject, durationMinutes = 60, onComplete }) {
   const resourceArray = resource;
   const [selectedId, setSelectedId] = useState(resourceArray[0]?._id);
   const [viewMode, setViewMode] = useState("question");
@@ -30,7 +30,8 @@ export default function QuizCard({ resource, subject }) {
   // Scoring States
   const [showResults, setShowResults] = useState(false);
   const [resultsData, setResultsData] = useState({ score: 0, correct: 0, wrong: 0, total: 0 });
-  const [timeLeft, setTimeLeft] = useState(60 * 60);
+  const [timeLeft, setTimeLeft] = useState(durationMinutes * 60);
+  const completionSentRef = useRef(false);
 
   const selectedResource = useMemo(() => {
     return resourceArray.find(r => r._id === selectedId);
@@ -89,7 +90,12 @@ export default function QuizCard({ resource, subject }) {
     const score = Math.round((correct / total) * 100);
     setResultsData({ score, correct, wrong, total });
     setShowResults(true);
-setReviewMode(true); // ✅ ADD THIS LINE
+    setReviewMode(true);
+    if (!completionSentRef.current && onComplete) {
+      completionSentRef.current = true;
+      const answers = Object.fromEntries(resourceArray.map((question) => [question._id, selectedOptionsRef.current[question._id] || ""]));
+      Promise.resolve(onComplete({ correct, total, answers })).catch(() => {});
+    }
   };
 
   const handleRestart = () => {
@@ -99,7 +105,8 @@ setReviewMode(true); // ✅ ADD THIS LINE
     setSelectedId(resourceArray[0]._id);
     setViewMode("question");
     setReviewMode(false); // ✅ ADD THIS
-    setTimeLeft(60 * 60);
+    setTimeLeft(durationMinutes * 60);
+    completionSentRef.current = false;
   };
 
   useEffect(() => {

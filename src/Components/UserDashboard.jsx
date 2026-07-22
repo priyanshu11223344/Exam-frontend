@@ -3,11 +3,11 @@ import {
   LayoutDashboard, BookOpen, Trophy, User, LogOut, 
   Clock, ChevronRight, Bell, Edit3, X, School, 
   GraduationCap, Calendar, Hash, Mail, ShieldCheck,
-  CreditCard, Sparkles, ExternalLink, FileText, PlayCircle
+  CreditCard, Sparkles, ExternalLink, FileText, PlayCircle, RefreshCw
 } from 'lucide-react';
 import { useDispatch, useSelector } from "react-redux";
 import { fetchUser, updateUser } from '../features/user/userSlice';
-import { useAuth, useUser } from '@clerk/react';
+import { useAuth, useClerk, useUser } from '@clerk/react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import Logo from "../assets/Aurethia_logo.avif"
 import API from '../api/axios';
@@ -19,6 +19,7 @@ const UserDashboard = () => {
   const navigate = useNavigate();
   const { tab } = useParams();
   const { getToken } = useAuth();
+  const { signOut } = useClerk();
   const { user: clerkUser, isLoaded: isClerkLoaded } = useUser();
   const { user, loading, error } = useSelector((state) => state.user);
   const activeTab = STUDENT_TAB_IDS.includes(tab) ? tab : "dashboard";
@@ -35,13 +36,24 @@ const UserDashboard = () => {
   const [classroomResources, setClassroomResources] = useState([]);
   const [submissions, setSubmissions] = useState([]);
   const [selectedSubject, setSelectedSubject] = useState("");
+  const [studentWorkspace, setStudentWorkspace] = useState({ subjects: [], teachers: [] });
+  const [boards, setBoards] = useState([]);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [loadError, setLoadError] = useState("");
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileError, setProfileError] = useState("");
 
   const subjectNames = useMemo(() => Array.from(new Set([
     ...assignedExams.map((exam) => exam.subject),
     ...classroomResources.map((resource) => resource.subject),
+    ...(studentWorkspace.subjects || []),
     ...(user?.subscriptionScope?.subjects || []),
-  ].filter(Boolean))).sort(), [assignedExams, classroomResources, user?.subscriptionScope?.subjects]);
+  ].filter(Boolean))).sort(), [assignedExams, classroomResources, studentWorkspace.subjects, user?.subscriptionScope?.subjects]);
   const activeSubject = selectedSubject || subjectNames[0] || "";
+  const recentGrades = useMemo(() => submissions
+    .filter((submission) => submission.status === "graded")
+    .sort((a, b) => new Date(b.gradedAt || b.updatedAt) - new Date(a.gradedAt || a.updatedAt))
+    .slice(0, 5), [submissions]);
 
   useEffect(() => { 
     if (isClerkLoaded && clerkUser) {
@@ -63,18 +75,20 @@ const UserDashboard = () => {
   }, [user, isModalOpen]);
 
   useEffect(() => {
+    API.get("/boards")
+      .then((response) => setBoards(response.data.data || []))
+      .catch(() => setBoards([]));
+  }, []);
+
+  useEffect(() => {
     const loadAssignments = async () => {
       const effectiveBoard = user?.board || user?.subscriptionScope?.board;
       const hasSchoolClass = Boolean(user?.board && user?.studentClass);
       const hasTestSeries = ["test_series", "complete"].includes(user?.productType);
-      if (!effectiveBoard || (!hasSchoolClass && !hasTestSeries)) {
-        setAssignedExams([]);
-        setClassSessions([]);
-        setClassroomResources([]);
-        return;
-      }
+      if (!user?.email) return;
 
       setExamLoading(true);
+      setLoadError("");
       try {
         const token = await getToken();
         const assignmentRequests = [];
@@ -89,7 +103,7 @@ const UserDashboard = () => {
         if (hasTestSeries) assignmentRequests.push(API.get("/exams/assignments", {
           params: { board: effectiveBoard, audience: "subscribers", limit: 100 },
         }));
-        const [assignmentResponses, sessionResponse, resourceResponse, submissionResponse] = await Promise.all([
+        const [assignmentResponses, sessionResponse, resourceResponse, submissionResponse, workspaceResponse] = await Promise.all([
           Promise.all(assignmentRequests),
           hasSchoolClass ? API.get("/teachers/student-sessions", {
             params: {
@@ -99,6 +113,7 @@ const UserDashboard = () => {
           }) : Promise.resolve({ data: { data: [] } }),
           hasSchoolClass ? API.get("/classroom/resources", { params: { board: user.board, className: user.studentClass, limit: 100 }, headers: { Authorization: `Bearer ${token}` } }) : Promise.resolve({ data: { data: [] } }),
           API.get("/exams/submissions", { params: { userEmail: user.email, limit: 100 }, headers: { Authorization: `Bearer ${token}` } }),
+          hasSchoolClass ? API.get("/teachers/student-workspace", { headers: { Authorization: `Bearer ${token}` } }) : Promise.resolve({ data: { data: { subjects: [], teachers: [] } } }),
         ]);
         const scopedSubjects = user?.subscriptionScope?.subjects || [];
         const exams = assignmentResponses.flatMap((response) => response.data.data || []).filter((exam) => !scopedSubjects.length || exam.audience !== "subscribers" || scopedSubjects.includes(exam.subject));
@@ -106,15 +121,17 @@ const UserDashboard = () => {
         setClassSessions(sessionResponse.data.data || []);
         setClassroomResources(resourceResponse.data.data || []);
         setSubmissions(submissionResponse.data.data || []);
+        setStudentWorkspace(workspaceResponse.data.data || { subjects: [], teachers: [] });
       } catch (error) {
         console.error("Unable to load assigned work", error);
+        setLoadError(error.response?.data?.error || "Unable to refresh student data.");
       } finally {
         setExamLoading(false);
       }
     };
 
     loadAssignments();
-  }, [getToken, user?.board, user?.email, user?.productType, user?.studentClass, user?.subscriptionScope?.board, user?.subscriptionScope?.subjects]);
+  }, [getToken, refreshKey, user?.board, user?.email, user?.productType, user?.studentClass, user?.subscriptionScope?.board, user?.subscriptionScope?.subjects]);
 
   if (loading || !isClerkLoaded) {
     return (
@@ -146,10 +163,20 @@ const UserDashboard = () => {
     );
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    dispatch(updateUser({ getToken, clerkUser, formData }));
-    setIsModalOpen(false);
+    setProfileSaving(true);
+    setProfileError("");
+    try {
+      await dispatch(updateUser({ getToken, clerkUser, formData })).unwrap();
+      await dispatch(fetchUser({ getToken, clerkUser })).unwrap();
+      setIsModalOpen(false);
+      setRefreshKey((value) => value + 1);
+    } catch (saveError) {
+      setProfileError(typeof saveError === "string" ? saveError : "Unable to save profile.");
+    } finally {
+      setProfileSaving(false);
+    }
   };
 
   const goToTab = (tabId) => {
@@ -174,9 +201,41 @@ const UserDashboard = () => {
       await API.post(`/exams/assignments/${assignmentId}/answer-sheets`, uploadData, { headers: { Authorization: `Bearer ${token}` } });
       alert("Answer sheets submitted");
       setAnswerFiles({ ...answerFiles, [assignmentId]: [] });
+      setRefreshKey((value) => value + 1);
     } catch (error) {
       alert(error.response?.data?.error || "Unable to submit answer sheets");
     }
+  };
+
+  const handleSignOut = async () => {
+    sessionStorage.removeItem("filters");
+    sessionStorage.removeItem("quizFilters");
+    sessionStorage.removeItem("papers");
+    sessionStorage.removeItem("quizData");
+    await signOut();
+    navigate("/");
+  };
+
+  const downloadTranscript = () => {
+    if (!recentGrades.length) return;
+    const escapeCell = (value) => `"${String(value ?? "").replaceAll('"', '""')}"`;
+    const rows = [
+      ["Assessment", "Subject", "Grade", "Feedback", "Graded at"],
+      ...recentGrades.map((submission) => [
+        submission.assignment?.title || "Submitted work",
+        submission.assignment?.subject || "",
+        submission.grade || `${submission.quizResult?.score || 0}/${submission.quizResult?.total || 0}`,
+        submission.feedback || "",
+        new Date(submission.gradedAt || submission.updatedAt).toLocaleString(),
+      ]),
+    ];
+    const blob = new Blob([rows.map((row) => row.map(escapeCell).join(",")).join("\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${(user?.name || "student").replaceAll(" ", "-").toLowerCase()}-transcript.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -202,7 +261,7 @@ const UserDashboard = () => {
         </nav>
 
         <div className="p-6 mt-auto">
-          <button className="flex items-center gap-3 w-full p-4 rounded-2xl text-slate-400 hover:text-red-400 hover:bg-red-400/10 transition-all group">
+          <button type="button" onClick={handleSignOut} className="flex items-center gap-3 w-full p-4 rounded-2xl text-slate-400 hover:text-red-400 hover:bg-red-400/10 transition-all group">
             <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" />
             <span className="font-bold uppercase text-xs tracking-widest">Sign Out</span>
           </button>
@@ -222,15 +281,18 @@ const UserDashboard = () => {
           </div>
 
           <div className="flex items-center gap-6">
-            <button className="p-2.5 bg-slate-100 text-slate-500 rounded-xl hover:text-indigo-600 hover:bg-indigo-50 transition-all relative">
+            <button type="button" title="Refresh dashboard" onClick={() => setRefreshKey((value) => value + 1)} className="p-2.5 bg-slate-100 text-slate-500 rounded-xl hover:text-indigo-600 hover:bg-indigo-50 transition-all">
+              <RefreshCw size={20} className={examLoading ? "animate-spin" : ""} />
+            </button>
+            <button type="button" title="Open assigned exams" onClick={() => goToTab("exams")} className="p-2.5 bg-slate-100 text-slate-500 rounded-xl hover:text-indigo-600 hover:bg-indigo-50 transition-all relative">
               <Bell size={20} />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-indigo-600 rounded-full border-2 border-white"></span>
+              {assignedExams.length > 0 && <span className="absolute top-2 right-2 w-2 h-2 bg-indigo-600 rounded-full border-2 border-white"></span>}
             </button>
             
             <div className="flex items-center gap-4 pl-6 border-l border-slate-200">
               <div className="text-right">
                 <p className="text-sm font-black text-slate-900 leading-none">{user?.name}</p>
-                <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest leading-none mt-1 inline-block">Student ID: #8291</span>
+                <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest leading-none mt-1 inline-block">Student ID: #{String(user?._id || "NEW").slice(-6).toUpperCase()}</span>
               </div>
               <img 
                 src={`https://ui-avatars.com/api/?name=${user?.name || "User"}&background=4f46e5&color=fff&bold=true`} 
@@ -241,6 +303,7 @@ const UserDashboard = () => {
         </header>
 
         <div className="p-10 max-w-7xl mx-auto space-y-10">
+          {loadError && <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm font-bold text-rose-700"><span>{loadError}</span><button type="button" onClick={() => setRefreshKey((value) => value + 1)} className="rounded-lg bg-rose-600 px-4 py-2 text-xs text-white">Try again</button></div>}
           
           {/* --- PROFILE SECTION --- */}
           {activeTab === "dashboard" && <section className="relative">
@@ -267,7 +330,7 @@ const UserDashboard = () => {
                 </div>
 
                 <button 
-                  onClick={() => setIsModalOpen(true)}
+                  onClick={() => { setProfileError(""); setIsModalOpen(true); }}
                   className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-2xl font-bold text-sm hover:bg-indigo-600 hover:-translate-y-1 transition-all active:scale-95 shadow-lg"
                 >
                   <Edit3 size={16} /> Edit Details
@@ -287,7 +350,7 @@ const UserDashboard = () => {
           {activeTab === "dashboard" && <><section className="mb-8 space-y-5">
             <div><p className="text-xs font-black uppercase tracking-widest text-indigo-600">{user?.productType?.replaceAll("_", " ") || "Student workspace"}</p><h2 className="text-2xl font-black">Choose a subject</h2><p className="text-sm font-semibold text-slate-500">Open worksheets, assigned tests and checked work for each subject.</p></div>
             {user?.productType && user.productType !== "free" && <div className="flex flex-wrap gap-3 rounded-2xl border border-indigo-100 bg-indigo-50 p-4">{["topical", "complete", "topical_builder"].includes(user.productType) && <Link to="/home" className="rounded-xl bg-indigo-600 px-5 py-3 text-sm font-black text-white">Open Topical Questions</Link>}{["test_series", "complete"].includes(user.productType) && <button onClick={() => goToTab("exams")} className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-black text-white">Open Test Series</button>}{user.productType === "topical_builder" && <Link to="/home" className="rounded-xl bg-violet-600 px-5 py-3 text-sm font-black text-white">Build a Custom PDF Test</Link>}</div>}
-            {subjectNames.length === 0 ? <div className="rounded-2xl border border-slate-200 bg-white p-6 text-slate-500">Your subjects will appear after your class or subscription is configured.</div> : <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{subjectNames.map((subject) => <button key={subject} onClick={() => setSelectedSubject(subject)} className={`rounded-2xl border p-5 text-left shadow-sm transition ${activeSubject === subject ? "border-indigo-500 bg-indigo-600 text-white" : "border-slate-200 bg-white hover:border-indigo-300"}`}><BookOpen size={22} /><p className="mt-4 text-lg font-black">{subject}</p></button>)}</div>}
+            {subjectNames.length === 0 ? <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-6"><div><p className="font-black text-slate-800">No subjects assigned yet</p><p className="mt-1 text-sm text-slate-500">Complete your board and class first. Subjects assigned by the admin or teacher will sync here automatically.</p></div>{(!user?.board || !user?.studentClass) && <button type="button" onClick={() => { setProfileError(""); setIsModalOpen(true); }} className="rounded-xl bg-indigo-600 px-5 py-3 text-sm font-black text-white">Complete profile</button>}</div> : <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{subjectNames.map((subject) => <button key={subject} onClick={() => setSelectedSubject(subject)} className={`rounded-2xl border p-5 text-left shadow-sm transition ${activeSubject === subject ? "border-indigo-500 bg-indigo-600 text-white" : "border-slate-200 bg-white hover:border-indigo-300"}`}><BookOpen size={22} /><p className="mt-4 text-lg font-black">{subject}</p></button>)}</div>}
             {activeSubject && <div className="grid gap-5 lg:grid-cols-3">
               <div className="rounded-2xl border border-slate-200 bg-white p-5 lg:col-span-2"><h3 className="flex items-center gap-2 font-black"><FileText size={18} />Worksheets & content</h3><div className="mt-4 space-y-3">{classroomResources.filter((item) => item.subject === activeSubject).map((resource) => <div key={resource._id} className="rounded-xl bg-slate-50 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-black">{resource.title}</p><p className="text-sm text-slate-500">{resource.description || "Class resource"}</p><p className="mt-1 text-xs font-bold text-rose-600">Deadline: {new Date(resource.deadline).toLocaleString()}</p></div><a href={resource.driveUrl} target="_blank" rel="noreferrer" className="rounded-lg bg-slate-950 px-4 py-2 text-xs font-black text-white">Open <ExternalLink size={13} className="ml-1 inline" /></a></div></div>)}{!classroomResources.some((item) => item.subject === activeSubject) && <p className="text-sm text-slate-500">No worksheets uploaded for this subject yet.</p>}</div></div>
               {user?.features?.includes("mcq") && <div className="rounded-2xl border border-violet-200 bg-violet-50 p-5"><Sparkles className="text-violet-600" /><h3 className="mt-3 text-lg font-black">Special Test for Me</h3><p className="mt-1 text-sm text-slate-600">Start a timed MCQ test using the marking scheme in the question database.</p><Link to="/quiz" className="mt-5 block rounded-xl bg-violet-600 px-4 py-3 text-center text-sm font-black text-white"><PlayCircle size={16} className="mr-2 inline" />Start test</Link></div>}
@@ -335,7 +398,7 @@ const UserDashboard = () => {
                 <h2 className="text-xl font-black text-slate-900 px-2 tracking-tight flex items-center gap-2">
                   <CreditCard size={20} className="text-indigo-600" /> Plan Status
                 </h2>
-                <PlanCard planName={user?.planName} expiry={user?.planExpiry} />
+                <PlanCard planName={user?.planName} expiry={user?.planExpiry} onUpgrade={() => navigate("/pricingPage")} />
               </div>
 
               {/* Recent Results */}
@@ -345,10 +408,10 @@ const UserDashboard = () => {
                 </h2>
                 <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
                   <div className="p-6 space-y-5">
-                    <ResultItem subject="Physics 101" score="92/100" date="2 days ago" trend="up" />
-                    <ResultItem subject="Data Structures" score="78/100" date="1 week ago" trend="down" />
+                    {recentGrades.map((submission) => <ResultItem key={submission._id} subject={submission.assignment?.subject || submission.assignment?.title || "Assessment"} score={submission.grade || `${submission.quizResult?.score || 0}/${submission.quizResult?.total || 0}`} date={new Date(submission.gradedAt || submission.updatedAt).toLocaleDateString()} />)}
+                    {recentGrades.length === 0 && <p className="py-3 text-sm font-semibold text-slate-500">No graded work yet. Grades will appear after a teacher checks a submission.</p>}
                   </div>
-                  <button className="w-full py-4 bg-slate-50 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 border-t hover:bg-slate-100 hover:text-indigo-600 transition-all flex items-center justify-center gap-1">
+                  <button type="button" disabled={!recentGrades.length} onClick={downloadTranscript} className="w-full py-4 bg-slate-50 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 border-t enabled:hover:bg-slate-100 enabled:hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-50 transition-all flex items-center justify-center gap-1">
                     Download Transcripts <ChevronRight size={14} />
                   </button>
                 </div>
@@ -397,9 +460,9 @@ const UserDashboard = () => {
                         </div>
 
                         {exam.type === "quiz" ? (
-                          <Link to="/quiz" className="rounded-2xl bg-indigo-600 px-5 py-3 text-center text-xs font-black uppercase tracking-widest text-white">
+                          <button type="button" onClick={() => navigate("/quiz", { state: { assignment: exam } })} className="rounded-2xl bg-indigo-600 px-5 py-3 text-center text-xs font-black uppercase tracking-widest text-white">
                             Start Quiz
-                          </Link>
+                          </button>
                         ) : (
                           <a
                             href={exam.questionPaper?.url || `${API.defaults.baseURL?.replace("/api", "")}${exam.questionPaper?.path}`}
@@ -505,7 +568,9 @@ const UserDashboard = () => {
           {activeTab === "profile" && (
             <section className="bg-white rounded-3xl border border-slate-200 p-8">
               <h2 className="text-2xl font-black text-slate-900">Profile</h2>
-              <p className="mt-2 text-slate-500 font-semibold">Use Edit Details on the dashboard to update school, board and class.</p>
+              <p className="mt-2 text-slate-500 font-semibold">Your board and class connect this account to the correct teachers, subjects, content and assessments.</p>
+              <div className="mt-6 grid gap-4 sm:grid-cols-2"><DetailBox icon={<School size={18} />} label="School" value={user?.school} color="blue" /><DetailBox icon={<GraduationCap size={18} />} label="Board" value={user?.board} color="indigo" /><DetailBox icon={<Hash size={18} />} label="Class" value={user?.studentClass} color="purple" /><DetailBox icon={<Mail size={18} />} label="Email" value={user?.email} color="rose" /></div>
+              <button type="button" onClick={() => { setProfileError(""); setIsModalOpen(true); }} className="mt-6 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-black text-white"><Edit3 size={16} /> Edit profile</button>
             </section>
           )}
         </div>
@@ -531,13 +596,14 @@ const UserDashboard = () => {
               <PremiumInput label="Full Name" value={formData.name} icon={<User size={16}/>} onChange={(v) => setFormData({...formData, name: v})} />
               <div className="grid grid-cols-2 gap-5">
                 <PremiumInput label="School" value={formData.school} icon={<School size={16}/>} onChange={(v) => setFormData({...formData, school: v})} />
-                <PremiumInput label="Board" value={formData.board} icon={<GraduationCap size={16}/>} onChange={(v) => setFormData({...formData, board: v})} />
+                <PremiumSelect label="Board" value={formData.board} icon={<GraduationCap size={16}/>} options={boards.map((board) => board.name)} placeholder="Select board" onChange={(v) => setFormData({...formData, board: v})} />
               </div>
               <div className="grid grid-cols-2 gap-5">
-                <PremiumInput label="Class" value={formData.studentClass} icon={<Hash size={16}/>} onChange={(v) => setFormData({...formData, studentClass: v})} />
+                <PremiumSelect label="Class" value={formData.studentClass} icon={<Hash size={16}/>} options={Array.from({ length: 12 }, (_, index) => String(index + 1))} placeholder="Select class" onChange={(v) => setFormData({...formData, studentClass: v})} />
                 <PremiumInput label="Age" type="number" value={formData.age} icon={<Calendar size={16}/>} onChange={(v) => setFormData({...formData, age: v})} />
               </div>
 
+              {profileError && <p className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{profileError}</p>}
               <div className="flex gap-4 pt-6">
                 <button 
                   type="button" 
@@ -548,9 +614,10 @@ const UserDashboard = () => {
                 </button>
                 <button 
                   type="submit"
+                  disabled={profileSaving || !formData.name || !formData.board || !formData.studentClass}
                   className="flex-[2] py-4 bg-indigo-600 rounded-2xl font-black text-white hover:bg-indigo-700 shadow-xl shadow-indigo-200 transition-all active:scale-95"
                 >
-                  Save Profile
+                  {profileSaving ? "Saving..." : "Save Profile"}
                 </button>
               </div>
             </form>
@@ -563,7 +630,7 @@ const UserDashboard = () => {
 
 // --- SUB-COMPONENTS ---
 
-const PlanCard = ({ planName, expiry }) => {
+const PlanCard = ({ planName, expiry, onUpgrade }) => {
   const expiryDate = expiry ? new Date(expiry) : null;
   const isExpired = expiryDate ? expiryDate < new Date() : false;
 
@@ -592,7 +659,7 @@ const PlanCard = ({ planName, expiry }) => {
               {expiryDate ? expiryDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "Lifetime"}
             </p>
           </div>
-          <button className="bg-white text-slate-900 px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-indigo-400 hover:text-white transition-all shadow-lg">
+          <button type="button" onClick={onUpgrade} className="bg-white text-slate-900 px-4 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-indigo-400 hover:text-white transition-all shadow-lg">
             Upgrade
           </button>
         </div>
@@ -637,6 +704,19 @@ const PremiumInput = ({ label, value, icon, onChange, type = "text" }) => (
   </div>
 );
 
+const PremiumSelect = ({ label, value, icon, onChange, options, placeholder }) => (
+  <div className="space-y-1.5 group">
+    <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest group-focus-within:text-indigo-600 transition-colors">{label}</label>
+    <div className="relative">
+      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">{icon}</div>
+      <select value={value} onChange={(event) => onChange(event.target.value)} className="w-full appearance-none pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white outline-none transition-all font-semibold text-slate-700">
+        <option value="">{placeholder}</option>
+        {options.map((option) => <option key={option} value={option}>{option}</option>)}
+      </select>
+    </div>
+  </div>
+);
+
 const SidebarItem = ({ icon, label, active = false, onClick }) => (
   <button onClick={onClick} className={`flex w-full items-center gap-4 px-5 py-4 rounded-2xl transition-all group ${
     active ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/30' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
@@ -647,10 +727,10 @@ const SidebarItem = ({ icon, label, active = false, onClick }) => (
   </button>
 );
 
-const ResultItem = ({ subject, score, date, trend }) => (
+const ResultItem = ({ subject, score, date }) => (
   <div className="flex justify-between items-center group cursor-pointer">
     <div className="flex items-center gap-3">
-      <div className={`w-1 h-8 rounded-full ${trend === 'up' ? 'bg-emerald-400' : 'bg-amber-400'}`}></div>
+      <div className="w-1 h-8 rounded-full bg-emerald-400"></div>
       <div>
         <p className="font-bold text-slate-800 text-sm leading-tight">{subject}</p>
         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">{date}</p>
