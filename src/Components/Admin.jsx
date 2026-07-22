@@ -230,7 +230,7 @@ const Admin = () => {
     [currentYear]
   );
   const allStudents = useMemo(
-    () => adminUsers.filter((user) => user.role === "user"),
+    () => adminUsers.filter((user) => !["admin", "staff", "teacher"].includes(user.role)),
     [adminUsers]
   );
   const adminStaff = useMemo(() => adminUsers.filter((user) => user.role === "staff"), [adminUsers]);
@@ -318,7 +318,7 @@ const Admin = () => {
 
   const assignmentStudentOptions = useMemo(() => {
     return adminUsers
-      .filter((user) => user.role === "user")
+      .filter((user) => !["admin", "staff", "teacher"].includes(user.role))
       .filter((user) => !assignmentForm.board || !user.board || user.board === assignmentForm.board)
       .filter((user) => !assignmentForm.className || String(user.studentClass || "") === String(assignmentForm.className))
       .sort((a, b) => (a.name || a.email || "").localeCompare(b.name || b.email || ""));
