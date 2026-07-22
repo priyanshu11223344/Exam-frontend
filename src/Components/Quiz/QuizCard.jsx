@@ -25,10 +25,12 @@ export default function QuizCard({ resource, subject }) {
   const [viewMode, setViewMode] = useState("question");
   const [showAnswer, setShowAnswer] = useState(false);
   const [selectedOptions, setSelectedOptions] = useState({});
+  const selectedOptionsRef = useRef({});
   const [reviewMode, setReviewMode] = useState(false);
   // Scoring States
   const [showResults, setShowResults] = useState(false);
   const [resultsData, setResultsData] = useState({ score: 0, correct: 0, wrong: 0, total: 0 });
+  const [timeLeft, setTimeLeft] = useState(60 * 60);
 
   const selectedResource = useMemo(() => {
     return resourceArray.find(r => r._id === selectedId);
@@ -60,9 +62,12 @@ export default function QuizCard({ resource, subject }) {
       if (prev[resourceId] === option) {
         const updated = { ...prev };
         delete updated[resourceId];
+        selectedOptionsRef.current = updated;
         return updated;
       }
-      return { ...prev, [resourceId]: option };
+      const updated = { ...prev, [resourceId]: option };
+      selectedOptionsRef.current = updated;
+      return updated;
     });
   };
 
@@ -72,7 +77,7 @@ export default function QuizCard({ resource, subject }) {
     const total = resourceArray.length;
 
     resourceArray.forEach((q) => {
-      const userAns = selectedOptions[q._id];
+      const userAns = selectedOptionsRef.current[q._id];
       // Compare user choice with correctAnswer from API
       if (userAns === q.correctAnswer) {
         correct++;
@@ -89,11 +94,28 @@ setReviewMode(true); // ✅ ADD THIS LINE
 
   const handleRestart = () => {
     setSelectedOptions({});
+    selectedOptionsRef.current = {};
     setShowResults(false);
     setSelectedId(resourceArray[0]._id);
     setViewMode("question");
     setReviewMode(false); // ✅ ADD THIS
+    setTimeLeft(60 * 60);
   };
+
+  useEffect(() => {
+    if (reviewMode) return undefined;
+    const timer = window.setInterval(() => {
+      setTimeLeft((current) => {
+        if (current <= 1) {
+          window.clearInterval(timer);
+          window.setTimeout(handleSubmit, 0);
+          return 0;
+        }
+        return current - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [reviewMode]);
 
   useEffect(() => {
     setShowAnswer(false);
@@ -111,7 +133,7 @@ setReviewMode(true); // ✅ ADD THIS LINE
       <aside className="w-80 border-r border-slate-200 bg-white flex flex-col shadow-sm z-10">
         <div className="p-4 border-b border-slate-100">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="font-bold text-lg tracking-tight text-indigo-600">Aurethia Quiz</h1>
+            <div><h1 className="font-bold text-lg tracking-tight text-indigo-600">Aurethia Quiz</h1><p className={`text-xs font-black ${timeLeft < 300 ? "text-rose-600" : "text-slate-500"}`}>Time left: {String(Math.floor(timeLeft / 60)).padStart(2, "0")}:{String(timeLeft % 60).padStart(2, "0")}</p></div>
             <button className="p-1.5 hover:bg-slate-100 rounded-md text-slate-400 transition-colors">
               <Search size={18} />
             </button>

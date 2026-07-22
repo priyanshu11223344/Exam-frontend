@@ -16,16 +16,28 @@ import Quiz from './Components/Quiz/Quiz.jsx';
 import PricingPage from './Components/Subscription/PricingPage.jsx';
 import { fetchUser, setAdminAccess } from './features/user/userSlice.js';
 import { useDispatch } from 'react-redux';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Toaster } from 'react-hot-toast';
 import FeatureProtectedRoute from './Components/ProtectedRoutes/FeatureProtectedRoute.jsx';
 import { useAuth, useUser } from '@clerk/react';
+import API from './api/axios';
 const App = () => {
   const dispatch = useDispatch();
   // 🔥 Get real papers from Redux
   const {getToken}=useAuth();
   const { user, isLoaded } = useUser();
   const fetchedUserIdRef = useRef("");
+  const [apiReady, setApiReady] = useState(false);
+
+  useEffect(() => {
+    const interceptor = API.interceptors.request.use(async (config) => {
+      const token = await getToken();
+      if (token) config.headers.Authorization = `Bearer ${token}`;
+      return config;
+    });
+    setApiReady(true);
+    return () => API.interceptors.request.eject(interceptor);
+  }, [getToken]);
 
   useEffect(() => {
     if (!isLoaded || !user) return;
@@ -46,6 +58,8 @@ const App = () => {
       dispatch(fetchUser({ getToken, clerkUser: user }));
     }
   }, [dispatch, getToken, isLoaded, user]);
+
+  if (!apiReady) return <div className="flex min-h-screen items-center justify-center bg-slate-50 font-semibold text-slate-500">Preparing secure connection...</div>;
 
   return (
     // <div className="min-h-screen pb-20">

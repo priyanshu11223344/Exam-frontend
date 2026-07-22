@@ -35,6 +35,7 @@ import { fetchBoards, createBoard } from "../features/board/boardSlice";
 import { fetchSubjects, clearSubjects, createSubject } from "../features/subject/subjectSlice";
 import { fetchTopics, createTopic } from "../features/topic/topicSlice";
 import { uploadQuestions } from "../features/question/questionSlice";
+import { useAuth } from "@clerk/react";
 
 const emptyRow = (base = {}) => ({
   id: Date.now() + Math.random(),
@@ -104,6 +105,7 @@ const StatCard = ({ icon, label, value, tone, helper }) => (
 );
 
 const Admin = () => {
+  const { getToken } = useAuth();
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { section } = useParams();
@@ -155,6 +157,7 @@ const Admin = () => {
   const [assignmentForm, setAssignmentForm] = useState({
     title: "",
     type: "quiz",
+    audience: "class",
     board: "",
     className: "",
     subject: "",
@@ -544,10 +547,10 @@ const Admin = () => {
       !assignmentForm.title ||
       !assignmentForm.type ||
       !assignmentForm.board ||
-      !assignmentForm.className ||
+      (assignmentForm.audience === "class" && !assignmentForm.className) ||
       !assignmentForm.subject
     ) {
-      alert("Title, type, board, class and subject are required.");
+      alert("Title, type, board, subject and a class for classroom assignments are required.");
       return;
     }
 
@@ -575,11 +578,13 @@ const Admin = () => {
 
     setAssignmentSaving(true);
     try {
-      await API.post("/exams/assignments", formData);
+      const token = await getToken();
+      await API.post("/exams/assignments", formData, { headers: { Authorization: `Bearer ${token}` } });
       alert("Exam assignment published");
       setAssignmentForm({
         title: "",
         type: "quiz",
+        audience: "class",
         board: "",
         className: "",
         subject: "",
@@ -1078,6 +1083,13 @@ const Admin = () => {
                       ]}
                     />
 
+                    <SearchableSelect
+                      label="Audience"
+                      value={assignmentForm.audience}
+                      onChange={(value) => setAssignmentForm({ ...assignmentForm, audience: value, className: value === "subscribers" ? "" : assignmentForm.className, targetStudentEmail: "" })}
+                      options={[["class", "School class"], ["subscribers", "Paid test-series users"]]}
+                    />
+
                     <label className="space-y-1">
                       <span className="text-xs font-black uppercase tracking-wide text-slate-500">Duration</span>
                       <input
@@ -1097,13 +1109,13 @@ const Admin = () => {
                       options={boards.map((board) => [board.name, board.name])}
                     />
 
-                    <SearchableSelect
+                    {assignmentForm.audience === "class" && <SearchableSelect
                       label="Class"
                       value={assignmentForm.className}
                       onChange={handleAssignmentClassChange}
                       placeholder="Select Class"
                       options={assignmentClassOptions.map((className) => [className, `Grade ${className}`])}
-                    />
+                    />}
 
                     <SearchableSelect
                       label="Subject"
@@ -1113,7 +1125,7 @@ const Admin = () => {
                       options={assignmentSubjectOptions.map((subject) => [subject.name, subject.name])}
                     />
 
-                    <SearchableSelect
+                    {assignmentForm.audience === "class" && <SearchableSelect
                       label="Assign To"
                       value={assignmentForm.targetStudentEmail}
                       onChange={(value) => setAssignmentForm({ ...assignmentForm, targetStudentEmail: value })}
@@ -1122,7 +1134,7 @@ const Admin = () => {
                         student.email,
                         `${student.name || "Student"} - ${student.email}`,
                       ])}
-                    />
+                    />}
 
                     <label className="space-y-1">
                       <span className="text-xs font-black uppercase tracking-wide text-slate-500">Due date</span>

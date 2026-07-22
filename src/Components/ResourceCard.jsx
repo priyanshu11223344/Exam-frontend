@@ -44,7 +44,7 @@ import API from "../api/axios";
 /* ================= MAIN COMPONENT ================= */
 
 export default function QuestionExplorer({ resource, board, subject, topic }) {
-  const { features, role } = useSelector((state) => state.user);
+  const { features, role, user } = useSelector((state) => state.user);
   const hasPDF = role === "admin" || features.includes("pdf");
   const resourceArray = resource
   console.log(resourceArray)
@@ -190,7 +190,15 @@ export default function QuestionExplorer({ resource, board, subject, topic }) {
         }
       }
 
-      doc.save(`Exam_Export_${Date.now()}.pdf`);
+      const pageCount = doc.getNumberOfPages();
+      for (let page = 1; page <= pageCount; page += 1) {
+        doc.setPage(page);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(180, 180, 180);
+        doc.text(`AURETHIA · LICENSED TO ${user?.email || "SUBSCRIBER"}`, pageWidth / 2, pageHeight - 8, { align: "center" });
+      }
+      doc.save(`Aurethia_Exam_${Date.now()}.pdf`);
       setPdfMode(false);
       setSelectedForPDF([]);
     } catch (err) {

@@ -13,6 +13,11 @@ import {
   Trash2,
   Upload,
   Users,
+  FolderOpen,
+  MessageCircle,
+  ExternalLink,
+  X,
+  ClipboardCheck,
 } from "lucide-react";
 import { useAuth, useUser } from "@clerk/react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -20,7 +25,7 @@ import API from "../api/axios";
 import Logo from "../assets/Aurethia_logo.avif";
 import SearchableSelect from "./SearchableSelect";
 
-const TEACHER_TAB_IDS = ["overview", "papers", "calendar", "remarks"];
+const TEACHER_TAB_IDS = ["overview", "papers", "calendar", "remarks", "submissions"];
 
 const initialSession = {
   title: "",
@@ -30,6 +35,9 @@ const initialSession = {
   startsAt: "",
   endsAt: "",
   meetingLink: "",
+  topicTaught: "",
+  specificComments: "",
+  studentFeedback: "",
 };
 
 const initialAssignment = {
@@ -65,7 +73,7 @@ const emptyQuestionRow = () => ({
 });
 
 const TeacherDashboard = () => {
-  const { signOut } = useAuth();
+  const { signOut, getToken } = useAuth();
   const { user: clerkUser, isLoaded } = useUser();
   const navigate = useNavigate();
   const { tab } = useParams();
@@ -79,6 +87,14 @@ const TeacherDashboard = () => {
   const [questionRows, setQuestionRows] = useState([emptyQuestionRow()]);
   const [remarks, setRemarks] = useState({});
   const [error, setError] = useState("");
+  const [workspaceKey, setWorkspaceKey] = useState("");
+  const [workspaceTab, setWorkspaceTab] = useState("students");
+  const [classroomResources, setClassroomResources] = useState([]);
+  const [resourceForm, setResourceForm] = useState({ title: "", description: "", driveUrl: "", deadline: "" });
+  const [studentComment, setStudentComment] = useState({ studentId: "", comment: "" });
+  const [lessonModalOpen, setLessonModalOpen] = useState(false);
+  const [teacherSubmissions, setTeacherSubmissions] = useState([]);
+  const [gradeDrafts, setGradeDrafts] = useState({});
 
   const teacherEmail = clerkUser?.primaryEmailAddress?.emailAddress || "";
   const teacherName = clerkUser?.fullName || clerkUser?.firstName || "Teacher";
@@ -91,6 +107,15 @@ const TeacherDashboard = () => {
       subjects: entry.subjects?.length ? entry.subjects : ["General"],
     }));
   }, [assignedClasses]);
+
+  const workspaces = useMemo(() => classOptions.flatMap((entry) =>
+    entry.subjects.map((subject) => ({
+      key: `${entry.className}::${subject}`,
+      className: entry.className,
+      subject,
+    }))
+  ), [classOptions]);
+  const selectedWorkspace = workspaces.find((item) => item.key === workspaceKey) || workspaces[0];
 
   const assignmentSubjectOptions = useMemo(() => {
     const selectedClass = classOptions.find(
@@ -134,6 +159,9 @@ const TeacherDashboard = () => {
         },
       });
       setContext(response.data.data);
+      const token = await getToken();
+      const submissionResponse = await API.get("/classroom/submissions", { params: { teacherEmail, limit: 100 }, headers: { Authorization: `Bearer ${token}` } });
+      setTeacherSubmissions(submissionResponse.data.data || []);
     } catch (err) {
       setError(err.response?.data?.error || "Unable to load teacher dashboard");
     } finally {
@@ -146,6 +174,95 @@ const TeacherDashboard = () => {
       loadTeacher();
     }
   }, [isLoaded, teacherEmail]);
+
+  useEffect(() => {
+    if (!workspaceKey && workspaces[0]) setWorkspaceKey(workspaces[0].key);
+  }, [workspaceKey, workspaces]);
+
+  useEffect(() => {
+    const loadResources = async () => {
+      if (!selectedWorkspace || !teacherEmail) return;
+      const token = await getToken();
+      const response = await API.get("/classroom/resources", { params: {
+        teacherEmail,
+        board: assignment?.board,
+        className: selectedWorkspace.className,
+        subject: selectedWorkspace.subject,
+      }, headers: { Authorization: `Bearer ${token}` }});
+      setClassroomResources(response.data.data || []);
+    };
+    loadResources().catch((err) => setError(err.response?.data?.error || "Unable to load class content"));
+  }, [assignment?.board, selectedWorkspace?.key, teacherEmail]);
+
+  const publishResource = async (event) => {
+    event.preventDefault();
+    if (!selectedWorkspace) return;
+    setSaving(true);
+    try {
+      const token = await getToken();
+      await API.post("/classroom/resources", {
+        ...resourceForm,
+        teacherEmail,
+        teacherName,
+        board: assignment?.board,
+        className: selectedWorkspace.className,
+        subject: selectedWorkspace.subject,
+      }, { headers: { Authorization: `Bearer ${token}` } });
+      setResourceForm({ title: "", description: "", driveUrl: "", deadline: "" });
+      const response = await API.get("/classroom/resources", { params: {
+        teacherEmail, board: assignment?.board, className: selectedWorkspace.className, subject: selectedWorkspace.subject,
+      }, headers: { Authorization: `Bearer ${token}` }});
+      setClassroomResources(response.data.data || []);
+    } catch (err) {
+      alert(err.response?.data?.error || "Unable to add class content");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveStudentComment = async (student) => {
+    if (!studentComment.comment.trim() || studentComment.studentId !== student._id) return;
+    try {
+      const token = await getToken();
+      await API.post("/classroom/student-notes", {
+        teacherEmail,
+        studentId: student._id,
+        board: assignment?.board,
+        className: selectedWorkspace.className,
+        subject: selectedWorkspace.subject,
+        comment: studentComment.comment,
+      }, { headers: { Authorization: `Bearer ${token}` } });
+      setStudentComment({ studentId: "", comment: "" });
+      alert("Student comment saved");
+    } catch (err) {
+      alert(err.response?.data?.error || "Unable to save comment");
+    }
+  };
+
+  const gradeSubmission = async (submission) => {
+    const draft = gradeDrafts[submission._id] || {};
+    try {
+      const token = await getToken();
+      await API.put(`/classroom/submissions/${submission._id}/grade`, { teacherEmail, grade: draft.grade, feedback: draft.feedback }, { headers: { Authorization: `Bearer ${token}` } });
+      await loadTeacher();
+      setGradeDrafts((current) => ({ ...current, [submission._id]: {} }));
+    } catch (err) {
+      alert(err.response?.data?.error || "Unable to grade submission");
+    }
+  };
+
+  const openLessonForDate = (dateValue) => {
+    if (!selectedWorkspace) return;
+    setSessionForm({
+      ...initialSession,
+      board: assignment?.board || "",
+      className: selectedWorkspace.className,
+      subject: selectedWorkspace.subject,
+      startsAt: `${dateValue}T09:00`,
+      title: `${selectedWorkspace.subject} lesson`,
+    });
+    setLessonModalOpen(true);
+  };
 
   const applyClassToForm = (className, setter) => {
     const selected = classOptions.find((entry) => entry.className === className);
@@ -168,6 +285,7 @@ const TeacherDashboard = () => {
         teacherName,
       });
       setSessionForm(initialSession);
+      setLessonModalOpen(false);
       await loadTeacher();
       navigate("/TeacherDashboard/calendar");
     } catch (err) {
@@ -200,7 +318,8 @@ const TeacherDashboard = () => {
 
     setSaving(true);
     try {
-      await API.post("/exams/assignments", formData);
+      const token = await getToken();
+      await API.post("/exams/assignments", formData, { headers: { Authorization: `Bearer ${token}` } });
       setAssignmentForm(initialAssignment);
       setAssignmentFile(null);
       alert("Question paper published to students.");
@@ -285,6 +404,7 @@ const TeacherDashboard = () => {
     { id: "papers", label: "Question Papers", icon: FileQuestion },
     { id: "calendar", label: "Calendar", icon: CalendarDays },
     { id: "remarks", label: "Teacher Remarks", icon: MessageSquareText },
+    { id: "submissions", label: "Student Work", icon: ClipboardCheck },
   ];
 
   const goToTab = (tabId) => {
@@ -381,60 +501,54 @@ const TeacherDashboard = () => {
           )}
 
           {activeTab === "overview" && (
-            <section className="grid gap-5 xl:grid-cols-[0.75fr_1.25fr]">
-              <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <School className="text-indigo-600" />
-                  <div>
-                    <h3 className="font-black">Assigned Board</h3>
-                    <p className="text-slate-500 font-semibold">{assignment?.board || "Not assigned"}</p>
-                  </div>
-                </div>
-                <div className="mt-5 space-y-3">
-                  {assignedClasses.map((entry) => (
-                    <div key={entry.className} className="rounded-lg bg-slate-50 p-3">
-                      <p className="font-black">Grade {entry.className}</p>
-                      <p className="text-sm font-semibold text-slate-500">
-                        {(entry.subjects || []).join(", ") || "All subjects"}
-                      </p>
-                    </div>
+            <section className="space-y-5">
+              <div>
+                <div className="flex items-center gap-2"><School className="text-indigo-600" /><h3 className="text-xl font-black">Your Classes</h3></div>
+                <p className="mt-1 text-sm font-semibold text-slate-500">Choose a grade and subject workspace.</p>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  {workspaces.map((item) => (
+                    <button key={item.key} onClick={() => setWorkspaceKey(item.key)} className={`rounded-xl border p-5 text-left shadow-sm transition ${selectedWorkspace?.key === item.key ? "border-indigo-500 bg-indigo-600 text-white" : "border-slate-200 bg-white hover:border-indigo-300"}`}>
+                      <p className={`text-xs font-black uppercase tracking-widest ${selectedWorkspace?.key === item.key ? "text-indigo-100" : "text-slate-400"}`}>Grade {item.className}</p>
+                      <p className="mt-2 text-lg font-black">{item.subject}</p>
+                    </button>
                   ))}
                 </div>
               </div>
 
-              <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h3 className="flex items-center gap-2 font-black"><Users size={18} /> Students In Your Classes</h3>
-                <div className="mt-4 overflow-x-auto">
-                  <table className="w-full min-w-[620px] text-left text-sm">
-                    <thead className="bg-slate-50 text-xs font-black uppercase text-slate-500">
-                      <tr>
-                        <th className="p-3">Student</th>
-                        <th className="p-3">Class</th>
-                        <th className="p-3">School</th>
-                        <th className="p-3">Plan</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {context.students.length === 0 && (
-                        <tr><td colSpan="4" className="p-4 text-slate-500">No students found in assigned classes yet.</td></tr>
-                      )}
-                      {context.students.map((student) => (
-                        <tr key={student._id}>
-                          <td className="p-3">
-                            <p className="font-bold">{student.name || "Student"}</p>
-                            <p className="text-slate-500">{student.email}</p>
-                          </td>
-                          <td className="p-3">{student.studentClass || "-"}</td>
-                          <td className="p-3">{student.school || "-"}</td>
-                          <td className="p-3">{student.planName || "Free"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              {selectedWorkspace && <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+                <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="flex gap-2 border-b border-slate-100 pb-4">
+                    <button onClick={() => setWorkspaceTab("students")} className={`rounded-lg px-4 py-2 text-sm font-black ${workspaceTab === "students" ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-600"}`}><Users size={16} className="mr-2 inline" />Students</button>
+                    <button onClick={() => setWorkspaceTab("content")} className={`rounded-lg px-4 py-2 text-sm font-black ${workspaceTab === "content" ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-600"}`}><FolderOpen size={16} className="mr-2 inline" />Class Content</button>
+                  </div>
+
+                  {workspaceTab === "students" && <div className="mt-4 space-y-3">
+                    {context.students.filter((student) => String(student.studentClass) === String(selectedWorkspace.className)).map((student) => (
+                      <div key={student._id} className="rounded-lg border border-slate-100 p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="font-black">{student.name || "Student"}</p><p className="text-sm text-slate-500">{student.email}</p></div><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold">Grade {student.studentClass}</span></div>
+                        {studentComment.studentId === student._id ? <div className="mt-3 flex gap-2"><input autoFocus value={studentComment.comment} onChange={(event) => setStudentComment({ studentId: student._id, comment: event.target.value })} placeholder="Add a specific comment" className="min-w-0 flex-1 rounded-lg border border-slate-200 p-3 text-sm" /><button onClick={() => saveStudentComment(student)} className="rounded-lg bg-emerald-600 px-4 text-sm font-black text-white">Save</button></div> : <button onClick={() => setStudentComment({ studentId: student._id, comment: "" })} className="mt-3 text-sm font-bold text-indigo-600"><MessageCircle size={15} className="mr-1 inline" />Add comment</button>}
+                      </div>
+                    ))}
+                  </div>}
+
+                  {workspaceTab === "content" && <div className="mt-4 space-y-5">
+                    <form onSubmit={publishResource} className="grid gap-3 rounded-lg bg-slate-50 p-4 md:grid-cols-2">
+                      <Input label="Content title" value={resourceForm.title} onChange={(title) => setResourceForm({ ...resourceForm, title })} />
+                      <Input label="Deadline" type="datetime-local" value={resourceForm.deadline} onChange={(deadline) => setResourceForm({ ...resourceForm, deadline })} />
+                      <label className="space-y-1 md:col-span-2"><span className="text-xs font-black uppercase text-slate-500">Google Drive or resource link</span><input type="url" required value={resourceForm.driveUrl} onChange={(event) => setResourceForm({ ...resourceForm, driveUrl: event.target.value })} className="w-full rounded-lg border border-slate-200 p-3 text-sm" placeholder="https://drive.google.com/..." /></label>
+                      <label className="space-y-1 md:col-span-2"><span className="text-xs font-black uppercase text-slate-500">Instructions</span><textarea value={resourceForm.description} onChange={(event) => setResourceForm({ ...resourceForm, description: event.target.value })} className="h-20 w-full rounded-lg border border-slate-200 p-3 text-sm" /></label>
+                      <button disabled={saving} className="rounded-lg bg-indigo-600 px-5 py-3 text-sm font-black text-white md:col-span-2">+ Add Content</button>
+                    </form>
+                    {classroomResources.map((resource) => <a key={resource._id} href={resource.driveUrl} target="_blank" rel="noreferrer" className="block rounded-lg border border-slate-100 p-4 hover:border-indigo-200"><p className="font-black">{resource.title}</p><p className="text-sm text-slate-500">Due {new Date(resource.deadline).toLocaleString()}</p><ExternalLink size={15} className="mt-2 text-indigo-600" /></a>)}
+                  </div>}
                 </div>
-              </div>
+
+                <WorkspaceCalendar sessions={context.sessions.filter((session) => String(session.className) === String(selectedWorkspace.className) && session.subject === selectedWorkspace.subject)} onSelectDate={openLessonForDate} />
+              </div>}
             </section>
           )}
+
+          {lessonModalOpen && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/50 p-4"><form onSubmit={createSession} className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl"><div className="flex items-center justify-between"><div><p className="text-xs font-black uppercase text-indigo-600">Grade {sessionForm.className} · {sessionForm.subject}</p><h3 className="text-xl font-black">Lesson details</h3></div><button type="button" onClick={() => setLessonModalOpen(false)}><X /></button></div><div className="mt-5 grid gap-4 md:grid-cols-2"><Input label="Lesson title" value={sessionForm.title} onChange={(title) => setSessionForm({ ...sessionForm, title })} /><Input label="Date and time" type="datetime-local" value={sessionForm.startsAt} onChange={(startsAt) => setSessionForm({ ...sessionForm, startsAt })} /><Input label="Topic taught" value={sessionForm.topicTaught} onChange={(topicTaught) => setSessionForm({ ...sessionForm, topicTaught })} /><label className="space-y-1 md:col-span-2"><span className="text-xs font-black uppercase text-slate-500">Specific comments</span><textarea value={sessionForm.specificComments} onChange={(event) => setSessionForm({ ...sessionForm, specificComments: event.target.value })} className="h-20 w-full rounded-lg border border-slate-200 p-3 text-sm" /></label><label className="space-y-1 md:col-span-2"><span className="text-xs font-black uppercase text-slate-500">Feedback on students</span><textarea value={sessionForm.studentFeedback} onChange={(event) => setSessionForm({ ...sessionForm, studentFeedback: event.target.value })} className="h-20 w-full rounded-lg border border-slate-200 p-3 text-sm" /></label><button disabled={saving} className="rounded-lg bg-indigo-600 px-5 py-3 font-black text-white md:col-span-2">Save lesson</button></div></form></div>}
 
           {activeTab === "papers" && (
             <section className="space-y-5">
@@ -681,6 +795,19 @@ const TeacherDashboard = () => {
               })}
             </section>
           )}
+
+          {activeTab === "submissions" && <section className="space-y-4">
+            <div><h3 className="text-xl font-black">Student Submissions</h3><p className="text-sm text-slate-500">Review uploaded answer sheets and return grades and feedback.</p></div>
+            {teacherSubmissions.map((submission) => {
+              const draft = gradeDrafts[submission._id] || {};
+              return <div key={submission._id} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-black">{submission.assignmentDetails?.title || "Assignment"}</p><p className="text-sm text-slate-500">{submission.userName || submission.userEmail} · {submission.assignmentDetails?.subject}</p></div><span className={`rounded-full px-3 py-1 text-xs font-black ${submission.status === "graded" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{submission.status}</span></div>
+                <div className="mt-3 flex flex-wrap gap-2">{(submission.answerSheets || []).map((file) => <a key={file.url || file.path} href={file.url || `${API.defaults.baseURL?.replace("/api", "")}${file.path}`} target="_blank" rel="noreferrer" className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-bold text-indigo-600">Open {file.originalName || "answer sheet"}</a>)}</div>
+                <div className="mt-4 grid gap-3 md:grid-cols-[160px_1fr_auto]"><input value={draft.grade ?? submission.grade ?? ""} onChange={(event) => setGradeDrafts({ ...gradeDrafts, [submission._id]: { ...draft, grade: event.target.value } })} placeholder="Grade / score" className="rounded-lg border border-slate-200 p-3 text-sm" /><input value={draft.feedback ?? submission.feedback ?? ""} onChange={(event) => setGradeDrafts({ ...gradeDrafts, [submission._id]: { ...draft, feedback: event.target.value } })} placeholder="Feedback for the student" className="rounded-lg border border-slate-200 p-3 text-sm" /><button onClick={() => gradeSubmission(submission)} className="rounded-lg bg-emerald-600 px-5 py-3 text-sm font-black text-white">Return checked work</button></div>
+              </div>;
+            })}
+            {teacherSubmissions.length === 0 && <div className="rounded-xl bg-white p-6 text-slate-500">No work has been submitted yet.</div>}
+          </section>}
         </div>
       </main>
     </div>
@@ -725,5 +852,26 @@ const SessionList = ({ sessions }) => (
     </div>
   </div>
 );
+
+const WorkspaceCalendar = ({ sessions, onSelectDate }) => {
+  const [cursor, setCursor] = useState(() => new Date());
+  const year = cursor.getFullYear();
+  const month = cursor.getMonth();
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const cells = Array.from({ length: 42 }, (_, index) => {
+    const day = index - firstDay + 1;
+    return day > 0 && day <= daysInMonth ? day : null;
+  });
+  const dateKey = (day) => `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  const sessionDates = new Set(sessions.map((session) => new Date(session.startsAt).toLocaleDateString("en-CA")));
+
+  return <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="flex items-center justify-between"><div><h3 className="flex items-center gap-2 font-black"><CalendarDays size={18} />Calendar</h3><p className="text-sm text-slate-500">Click a date to record a lesson.</p></div><div className="flex gap-2"><button onClick={() => setCursor(new Date(year, month - 1, 1))} className="rounded-lg border px-3 py-2">‹</button><button onClick={() => setCursor(new Date(year, month + 1, 1))} className="rounded-lg border px-3 py-2">›</button></div></div>
+    <p className="mt-4 text-center font-black">{cursor.toLocaleString("en", { month: "long", year: "numeric" })}</p>
+    <div className="mt-3 grid grid-cols-7 gap-1 text-center text-xs font-bold text-slate-400">{["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((day) => <span key={day}>{day}</span>)}</div>
+    <div className="mt-2 grid grid-cols-7 gap-1">{cells.map((day, index) => day ? <button key={dateKey(day)} onClick={() => onSelectDate(dateKey(day))} className={`relative aspect-square rounded-lg text-sm font-bold hover:bg-indigo-50 ${sessionDates.has(dateKey(day)) ? "bg-indigo-600 text-white" : "bg-slate-50"}`}>{day}{sessionDates.has(dateKey(day)) && <span className="absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-white" />}</button> : <span key={`empty-${index}`} />)}</div>
+  </div>;
+};
 
 export default TeacherDashboard;

@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { 
   LayoutDashboard, BookOpen, Trophy, User, LogOut, 
   Clock, ChevronRight, Bell, Edit3, X, School, 
   GraduationCap, Calendar, Hash, Mail, ShieldCheck,
-  CreditCard, Sparkles
+  CreditCard, Sparkles, ExternalLink, FileText, PlayCircle
 } from 'lucide-react';
 import { useDispatch, useSelector } from "react-redux";
 import { fetchUser, updateUser } from '../features/user/userSlice';
@@ -32,6 +32,16 @@ const UserDashboard = () => {
   const [classSessions, setClassSessions] = useState([]);
   const [examLoading, setExamLoading] = useState(false);
   const [answerFiles, setAnswerFiles] = useState({});
+  const [classroomResources, setClassroomResources] = useState([]);
+  const [submissions, setSubmissions] = useState([]);
+  const [selectedSubject, setSelectedSubject] = useState("");
+
+  const subjectNames = useMemo(() => Array.from(new Set([
+    ...assignedExams.map((exam) => exam.subject),
+    ...classroomResources.map((resource) => resource.subject),
+    ...(user?.subscriptionScope?.subjects || []),
+  ].filter(Boolean))).sort(), [assignedExams, classroomResources, user?.subscriptionScope?.subjects]);
+  const activeSubject = selectedSubject || subjectNames[0] || "";
 
   useEffect(() => { 
     if (isClerkLoaded && clerkUser) {
@@ -54,31 +64,48 @@ const UserDashboard = () => {
 
   useEffect(() => {
     const loadAssignments = async () => {
-      if (!user?.board || !user?.studentClass) {
+      const effectiveBoard = user?.board || user?.subscriptionScope?.board;
+      const hasSchoolClass = Boolean(user?.board && user?.studentClass);
+      const hasTestSeries = ["test_series", "complete"].includes(user?.productType);
+      if (!effectiveBoard || (!hasSchoolClass && !hasTestSeries)) {
         setAssignedExams([]);
         setClassSessions([]);
+        setClassroomResources([]);
         return;
       }
 
       setExamLoading(true);
       try {
-        const [assignmentResponse, sessionResponse] = await Promise.all([
-          API.get("/exams/assignments", {
+        const token = await getToken();
+        const assignmentRequests = [];
+        if (hasSchoolClass) assignmentRequests.push(API.get("/exams/assignments", {
             params: {
               board: user.board,
               className: user.studentClass,
               studentEmail: user.email,
+              audience: "class",
             },
-          }),
-          API.get("/teachers/student-sessions", {
+          }));
+        if (hasTestSeries) assignmentRequests.push(API.get("/exams/assignments", {
+          params: { board: effectiveBoard, audience: "subscribers", limit: 100 },
+        }));
+        const [assignmentResponses, sessionResponse, resourceResponse, submissionResponse] = await Promise.all([
+          Promise.all(assignmentRequests),
+          hasSchoolClass ? API.get("/teachers/student-sessions", {
             params: {
               board: user.board,
               className: user.studentClass,
             },
-          }),
+          }) : Promise.resolve({ data: { data: [] } }),
+          hasSchoolClass ? API.get("/classroom/resources", { params: { board: user.board, className: user.studentClass, limit: 100 }, headers: { Authorization: `Bearer ${token}` } }) : Promise.resolve({ data: { data: [] } }),
+          API.get("/exams/submissions", { params: { userEmail: user.email, limit: 100 }, headers: { Authorization: `Bearer ${token}` } }),
         ]);
-        setAssignedExams(assignmentResponse.data.data || []);
+        const scopedSubjects = user?.subscriptionScope?.subjects || [];
+        const exams = assignmentResponses.flatMap((response) => response.data.data || []).filter((exam) => !scopedSubjects.length || exam.audience !== "subscribers" || scopedSubjects.includes(exam.subject));
+        setAssignedExams(Array.from(new Map(exams.map((exam) => [exam._id, exam])).values()));
         setClassSessions(sessionResponse.data.data || []);
+        setClassroomResources(resourceResponse.data.data || []);
+        setSubmissions(submissionResponse.data.data || []);
       } catch (error) {
         console.error("Unable to load assigned work", error);
       } finally {
@@ -87,7 +114,7 @@ const UserDashboard = () => {
     };
 
     loadAssignments();
-  }, [user?.board, user?.studentClass]);
+  }, [getToken, user?.board, user?.email, user?.productType, user?.studentClass, user?.subscriptionScope?.board, user?.subscriptionScope?.subjects]);
 
   if (loading || !isClerkLoaded) {
     return (
@@ -143,7 +170,8 @@ const UserDashboard = () => {
     uploadData.append("userName", user.name);
 
     try {
-      await API.post(`/exams/assignments/${assignmentId}/answer-sheets`, uploadData);
+      const token = await getToken();
+      await API.post(`/exams/assignments/${assignmentId}/answer-sheets`, uploadData, { headers: { Authorization: `Bearer ${token}` } });
       alert("Answer sheets submitted");
       setAnswerFiles({ ...answerFiles, [assignmentId]: [] });
     } catch (error) {
@@ -256,7 +284,15 @@ const UserDashboard = () => {
           </section>}
 
           {/* --- DASHBOARD GRID --- */}
-          {activeTab === "dashboard" && <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+          {activeTab === "dashboard" && <><section className="mb-8 space-y-5">
+            <div><p className="text-xs font-black uppercase tracking-widest text-indigo-600">{user?.productType?.replaceAll("_", " ") || "Student workspace"}</p><h2 className="text-2xl font-black">Choose a subject</h2><p className="text-sm font-semibold text-slate-500">Open worksheets, assigned tests and checked work for each subject.</p></div>
+            {user?.productType && user.productType !== "free" && <div className="flex flex-wrap gap-3 rounded-2xl border border-indigo-100 bg-indigo-50 p-4">{["topical", "complete", "topical_builder"].includes(user.productType) && <Link to="/home" className="rounded-xl bg-indigo-600 px-5 py-3 text-sm font-black text-white">Open Topical Questions</Link>}{["test_series", "complete"].includes(user.productType) && <button onClick={() => goToTab("exams")} className="rounded-xl bg-slate-950 px-5 py-3 text-sm font-black text-white">Open Test Series</button>}{user.productType === "topical_builder" && <Link to="/home" className="rounded-xl bg-violet-600 px-5 py-3 text-sm font-black text-white">Build a Custom PDF Test</Link>}</div>}
+            {subjectNames.length === 0 ? <div className="rounded-2xl border border-slate-200 bg-white p-6 text-slate-500">Your subjects will appear after your class or subscription is configured.</div> : <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{subjectNames.map((subject) => <button key={subject} onClick={() => setSelectedSubject(subject)} className={`rounded-2xl border p-5 text-left shadow-sm transition ${activeSubject === subject ? "border-indigo-500 bg-indigo-600 text-white" : "border-slate-200 bg-white hover:border-indigo-300"}`}><BookOpen size={22} /><p className="mt-4 text-lg font-black">{subject}</p></button>)}</div>}
+            {activeSubject && <div className="grid gap-5 lg:grid-cols-3">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 lg:col-span-2"><h3 className="flex items-center gap-2 font-black"><FileText size={18} />Worksheets & content</h3><div className="mt-4 space-y-3">{classroomResources.filter((item) => item.subject === activeSubject).map((resource) => <div key={resource._id} className="rounded-xl bg-slate-50 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-black">{resource.title}</p><p className="text-sm text-slate-500">{resource.description || "Class resource"}</p><p className="mt-1 text-xs font-bold text-rose-600">Deadline: {new Date(resource.deadline).toLocaleString()}</p></div><a href={resource.driveUrl} target="_blank" rel="noreferrer" className="rounded-lg bg-slate-950 px-4 py-2 text-xs font-black text-white">Open <ExternalLink size={13} className="ml-1 inline" /></a></div></div>)}{!classroomResources.some((item) => item.subject === activeSubject) && <p className="text-sm text-slate-500">No worksheets uploaded for this subject yet.</p>}</div></div>
+              {user?.features?.includes("mcq") && <div className="rounded-2xl border border-violet-200 bg-violet-50 p-5"><Sparkles className="text-violet-600" /><h3 className="mt-3 text-lg font-black">Special Test for Me</h3><p className="mt-1 text-sm text-slate-600">Start a timed MCQ test using the marking scheme in the question database.</p><Link to="/quiz" className="mt-5 block rounded-xl bg-violet-600 px-4 py-3 text-center text-sm font-black text-white"><PlayCircle size={16} className="mr-2 inline" />Start test</Link></div>}
+            </div>}
+          </section><div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
             
             {/* Left Col: Upcoming Exams */}
             <div className="lg:col-span-2 space-y-6">
@@ -319,7 +355,7 @@ const UserDashboard = () => {
               </div>
 
             </div>
-          </div>}
+          </div></>}
 
           {activeTab === "exams" && (
             <section className="space-y-6">
@@ -366,7 +402,7 @@ const UserDashboard = () => {
                           </Link>
                         ) : (
                           <a
-                            href={`${API.defaults.baseURL?.replace("/api", "")}${exam.questionPaper?.path}`}
+                            href={exam.questionPaper?.url || `${API.defaults.baseURL?.replace("/api", "")}${exam.questionPaper?.path}`}
                             target="_blank"
                             rel="noreferrer"
                             className="rounded-2xl bg-slate-900 px-5 py-3 text-center text-xs font-black uppercase tracking-widest text-white"
@@ -381,6 +417,7 @@ const UserDashboard = () => {
                           <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500">
                             Upload answer-sheet photos
                           </label>
+                          <p className="mt-2 text-xs font-semibold text-amber-700">Only work printed or written on paper and then scanned will be accepted. Late submissions are blocked automatically.</p>
                           <div className="mt-3 flex flex-col gap-3 md:flex-row">
                             <input
                               type="file"
@@ -413,7 +450,8 @@ const UserDashboard = () => {
           {activeTab === "performance" && (
             <section className="bg-white rounded-3xl border border-slate-200 p-8">
               <h2 className="text-2xl font-black text-slate-900">Performance</h2>
-              <p className="mt-2 text-slate-500 font-semibold">Grades and submitted exam history will appear here after teachers review submissions.</p>
+              <p className="mt-2 text-slate-500 font-semibold">Submitted and checked work from your teachers.</p>
+              <div className="mt-6 space-y-3">{submissions.map((submission) => <div key={submission._id} className="rounded-xl border border-slate-100 bg-slate-50 p-4"><div className="flex items-center justify-between gap-3"><div><p className="font-black">{submission.assignment?.title || "Submitted work"}</p><p className="text-sm text-slate-500">{submission.assignment?.subject} · {new Date(submission.submittedAt || submission.updatedAt).toLocaleString()}</p></div><span className={`rounded-full px-3 py-1 text-xs font-black ${submission.status === "graded" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{submission.status}</span></div>{submission.status === "graded" && <div className="mt-3 rounded-lg bg-white p-3"><p className="font-black">Grade: {submission.grade || `${submission.quizResult?.score || 0}/${submission.quizResult?.total || 0}`}</p><p className="text-sm text-slate-600">{submission.feedback || "No additional feedback."}</p></div>}</div>)}{submissions.length === 0 && <p className="mt-4 text-sm text-slate-500">No submissions yet.</p>}</div>
             </section>
           )}
 
