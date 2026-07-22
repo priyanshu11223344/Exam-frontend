@@ -15,6 +15,7 @@ import {
   Link as LinkIcon,
   ListChecks,
   Loader2,
+  LogOut,
   MessageSquareText,
   Plus,
   RefreshCw,
@@ -35,7 +36,7 @@ import { fetchBoards, createBoard } from "../features/board/boardSlice";
 import { fetchSubjects, clearSubjects, createSubject } from "../features/subject/subjectSlice";
 import { fetchTopics, createTopic } from "../features/topic/topicSlice";
 import { uploadQuestions } from "../features/question/questionSlice";
-import { useAuth } from "@clerk/react";
+import { useAuth, useClerk } from "@clerk/react";
 
 const emptyRow = (base = {}) => ({
   id: Date.now() + Math.random(),
@@ -132,6 +133,7 @@ const StatCard = ({ icon, label, value, tone, helper }) => (
 
 const Admin = () => {
   const { getToken } = useAuth();
+  const { signOut } = useClerk();
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { section } = useParams();
@@ -802,10 +804,18 @@ const Admin = () => {
     navigate(`/admin/${sectionId}`);
   };
 
+  const handleSignOut = async () => {
+    ["filters", "quizFilters", "papers", "quizData", "lastRoute"].forEach((key) => {
+      sessionStorage.removeItem(key);
+    });
+    await signOut();
+    navigate("/login", { replace: true });
+  };
+
   return (
     <div className="min-h-screen bg-slate-100 text-slate-950">
       <div className="flex min-h-screen">
-        <aside className="hidden w-72 border-r border-slate-200 bg-white lg:block">
+        <aside className="hidden w-72 flex-col border-r border-slate-200 bg-white lg:flex">
           <div className="border-b border-slate-200 p-6">
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-slate-950 text-white">
@@ -818,7 +828,7 @@ const Admin = () => {
             </div>
           </div>
 
-          <nav className="p-4">
+          <nav className="flex-1 p-4">
             {sections.map((section) => {
               const Icon = section.icon;
               const active = activeSection === section.id;
@@ -838,6 +848,16 @@ const Admin = () => {
               );
             })}
           </nav>
+          <div className="border-t border-slate-200 p-4">
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm font-bold text-slate-600 transition hover:bg-rose-50 hover:text-rose-700"
+            >
+              <LogOut size={18} />
+              Sign Out
+            </button>
+          </div>
         </aside>
 
         <main className="flex-1">
@@ -855,6 +875,13 @@ const Admin = () => {
                   className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
                 >
                   <RefreshCw size={16} /> Refresh
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  className="inline-flex items-center gap-2 rounded-lg border border-rose-200 bg-white px-3 py-2 text-sm font-bold text-rose-700 hover:bg-rose-50 lg:hidden"
+                >
+                  <LogOut size={16} /> Sign Out
                 </button>
                 {isSuperAdmin && <Link
                   to="/home"
