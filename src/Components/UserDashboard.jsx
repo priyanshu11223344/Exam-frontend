@@ -3,7 +3,7 @@ import {
   LayoutDashboard, BookOpen, Trophy, User, LogOut, 
   Clock, ChevronRight, Bell, Edit3, X, School, 
   GraduationCap, Calendar, Hash, Mail, ShieldCheck,
-  CreditCard, Sparkles, ExternalLink, FileText, PlayCircle, RefreshCw
+  CreditCard, Sparkles, ExternalLink, FileText, PlayCircle, RefreshCw, ChevronDown
 } from 'lucide-react';
 import { useDispatch, useSelector } from "react-redux";
 import { fetchUser, updateUser } from '../features/user/userSlice';
@@ -50,6 +50,7 @@ const UserDashboard = () => {
     ...(user?.subscriptionScope?.subjects || []),
   ].filter(Boolean))).sort(), [assignedExams, classroomResources, studentWorkspace.subjects, user?.subscriptionScope?.subjects]);
   const activeSubject = selectedSubject || subjectNames[0] || "";
+  const requiresProfileSetup = user?.role === "user" && !(user?.profileComplete ?? (user?.name && user?.board && user?.studentClass));
   const recentGrades = useMemo(() => submissions
     .filter((submission) => submission.status === "graded")
     .sort((a, b) => new Date(b.gradedAt || b.updatedAt) - new Date(a.gradedAt || a.updatedAt))
@@ -73,6 +74,12 @@ const UserDashboard = () => {
       });
     }
   }, [user, isModalOpen]);
+
+  useEffect(() => {
+    if (requiresProfileSetup) {
+      setIsModalOpen(true);
+    }
+  }, [requiresProfileSetup]);
 
   useEffect(() => {
     API.get("/boards")
@@ -181,6 +188,10 @@ const UserDashboard = () => {
 
   const goToTab = (tabId) => {
     navigate(`/UserDashboard/${tabId}`);
+  };
+
+  const closeProfileModal = () => {
+    if (!requiresProfileSetup) setIsModalOpen(false);
   };
 
   const handleAnswerUpload = async (assignmentId) => {
@@ -589,43 +600,46 @@ const UserDashboard = () => {
       {/* --- EDIT PROFILE MODAL --- */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={() => setIsModalOpen(false)}></div>
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onClick={closeProfileModal}></div>
           
           <div className="relative bg-white rounded-[2.5rem] w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-8 pb-4 flex justify-between items-center">
               <div>
-                <h2 className="text-2xl font-black text-slate-900 tracking-tight">Academic Profile</h2>
-                <p className="text-slate-500 text-sm font-medium">Update your school and class info</p>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-2xl font-black text-slate-900 tracking-tight">Academic Profile</h2>
+                  {requiresProfileSetup && <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-indigo-600">Required</span>}
+                </div>
+                <p className="text-slate-500 text-sm font-medium">Select your board and class to continue.</p>
               </div>
-              <button onClick={() => setIsModalOpen(false)} className="p-2 bg-slate-100 text-slate-400 hover:text-red-500 rounded-full transition-all">
+              {!requiresProfileSetup && <button onClick={closeProfileModal} className="p-2 bg-slate-100 text-slate-400 hover:text-red-500 rounded-full transition-all">
                 <X size={20} />
-              </button>
+              </button>}
             </div>
             
             <form onSubmit={handleSubmit} className="p-8 space-y-5">
               <PremiumInput label="Full Name" value={formData.name} icon={<User size={16}/>} onChange={(v) => setFormData({...formData, name: v})} />
               <div className="grid grid-cols-2 gap-5">
-                <PremiumInput label="School" value={formData.school} icon={<School size={16}/>} onChange={(v) => setFormData({...formData, school: v})} />
-                <PremiumSelect label="Board" value={formData.board} icon={<GraduationCap size={16}/>} options={boards.map((board) => board.name)} placeholder="Select board" onChange={(v) => setFormData({...formData, board: v})} />
+                <PremiumInput label="School (optional)" value={formData.school} icon={<School size={16}/>} onChange={(v) => setFormData({...formData, school: v})} />
+                <PremiumSelect label="Board *" value={formData.board} icon={<GraduationCap size={16}/>} options={boards.map((board) => board.name)} placeholder="Select board" required onChange={(v) => setFormData({...formData, board: v})} />
               </div>
               <div className="grid grid-cols-2 gap-5">
-                <PremiumSelect label="Class" value={formData.studentClass} icon={<Hash size={16}/>} options={Array.from({ length: 12 }, (_, index) => String(index + 1))} placeholder="Select class" onChange={(v) => setFormData({...formData, studentClass: v})} />
-                <PremiumInput label="Age" type="number" value={formData.age} icon={<Calendar size={16}/>} onChange={(v) => setFormData({...formData, age: v})} />
+                <PremiumSelect label="Class *" value={formData.studentClass} icon={<Hash size={16}/>} options={Array.from({ length: 12 }, (_, index) => String(index + 1))} placeholder="Select class" required onChange={(v) => setFormData({...formData, studentClass: v})} />
+                <PremiumInput label="Age (optional)" type="number" value={formData.age} icon={<Calendar size={16}/>} onChange={(v) => setFormData({...formData, age: v})} />
               </div>
 
               {profileError && <p className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{profileError}</p>}
               <div className="flex gap-4 pt-6">
-                <button 
+                {!requiresProfileSetup && <button
                   type="button" 
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={closeProfileModal}
                   className="flex-1 py-4 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors"
                 >
                   Discard
-                </button>
+                </button>}
                 <button 
                   type="submit"
                   disabled={profileSaving || !formData.name || !formData.board || !formData.studentClass}
-                  className="flex-[2] py-4 bg-indigo-600 rounded-2xl font-black text-white hover:bg-indigo-700 shadow-xl shadow-indigo-200 transition-all active:scale-95"
+                  className="flex-[2] py-4 bg-indigo-600 rounded-2xl font-black text-white hover:bg-indigo-700 shadow-xl shadow-indigo-200 transition-all active:scale-95 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
                 >
                   {profileSaving ? "Saving..." : "Save Profile"}
                 </button>
@@ -714,15 +728,16 @@ const PremiumInput = ({ label, value, icon, onChange, type = "text" }) => (
   </div>
 );
 
-const PremiumSelect = ({ label, value, icon, onChange, options, placeholder }) => (
+const PremiumSelect = ({ label, value, icon, onChange, options, placeholder, required = false }) => (
   <div className="space-y-1.5 group">
     <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest group-focus-within:text-indigo-600 transition-colors">{label}</label>
     <div className="relative">
       <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">{icon}</div>
-      <select value={value} onChange={(event) => onChange(event.target.value)} className="w-full appearance-none pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white outline-none transition-all font-semibold text-slate-700">
-        <option value="">{placeholder}</option>
+      <select required={required} aria-required={required} value={value} onChange={(event) => onChange(event.target.value)} className="w-full cursor-pointer appearance-none pl-11 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:bg-white outline-none transition-all font-semibold text-slate-700">
+        <option value="" disabled>{placeholder}</option>
         {options.map((option) => <option key={option} value={option}>{option}</option>)}
       </select>
+      <ChevronDown size={16} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" />
     </div>
   </div>
 );

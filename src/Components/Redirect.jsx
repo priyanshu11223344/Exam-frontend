@@ -13,12 +13,17 @@ const RedirectPage = () => {
   }
 
   const role = user?.publicMetadata?.role || backendRole || "user";
+  const studentProfileIncomplete = role === "user" && backendUser && !(backendUser.profileComplete ?? (backendUser.name && backendUser.board && backendUser.studentClass));
   const lastRoute = sessionStorage.getItem("lastRoute") || "";
   const lastPath = lastRoute.split(/[?#]/)[0];
 
   // 🔥 IMPORTANT FIX
   if (!role) {
     return <div>Loading role...</div>;
+  }
+
+  if (studentProfileIncomplete) {
+    return <Navigate to="/UserDashboard/dashboard" replace />;
   }
 
   if (lastRoute && lastPath) {
@@ -52,7 +57,7 @@ const RedirectPage = () => {
     return <Navigate to="/TeacherDashboard/overview" replace />;
   }
 
-  return <Navigate to="/home" replace />;
+  return <Navigate to="/UserDashboard/dashboard" replace />;
 };
 
 export default RedirectPage;
