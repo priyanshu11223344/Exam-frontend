@@ -102,6 +102,12 @@ const TeacherDashboard = () => {
     return Array.from(new Set(subjects.filter(Boolean))).sort((a, b) => a.localeCompare(b));
   }, [assignmentForm.className, classOptions]);
 
+  const sessionSubjectOptions = useMemo(() => {
+    return classOptions.find(
+      (entry) => String(entry.className) === String(sessionForm.className)
+    )?.subjects || [];
+  }, [sessionForm.className, classOptions]);
+
   const assignmentStudentOptions = useMemo(() => {
     return (context.students || [])
       .filter((student) => !assignmentForm.className || String(student.studentClass || "") === String(assignmentForm.className))
@@ -612,7 +618,12 @@ const TeacherDashboard = () => {
                     options={classOptions.map((entry) => [entry.className, `Grade ${entry.className}`])}
                   />
                   <Input label="Board" value={sessionForm.board} onChange={(value) => setSessionForm({ ...sessionForm, board: value })} />
-                  <Input label="Subject" value={sessionForm.subject} onChange={(value) => setSessionForm({ ...sessionForm, subject: value })} />
+                  <Select
+                    label="Subject"
+                    value={sessionForm.subject}
+                    onChange={(value) => setSessionForm({ ...sessionForm, subject: value })}
+                    options={sessionSubjectOptions.map((subject) => [subject, subject])}
+                  />
                   <Input label="Starts at" type="datetime-local" value={sessionForm.startsAt} onChange={(value) => setSessionForm({ ...sessionForm, startsAt: value })} />
                   <Input label="Ends at" type="datetime-local" value={sessionForm.endsAt} onChange={(value) => setSessionForm({ ...sessionForm, endsAt: value })} />
                   <Input label="Meeting link" value={sessionForm.meetingLink} onChange={(value) => setSessionForm({ ...sessionForm, meetingLink: value })} />

@@ -143,12 +143,14 @@ const Admin = () => {
   const [teacherData, setTeacherData] = useState({ teachers: [], assignments: [] });
   const [teacherRemarks, setTeacherRemarks] = useState([]);
   const [teacherSaving, setTeacherSaving] = useState(false);
+  const [teacherSubjects, setTeacherSubjects] = useState([]);
   const [teacherForm, setTeacherForm] = useState({
     teacherId: "",
     teacherEmail: "",
     teacherName: "",
     board: "",
-    classes: "",
+    className: "",
+    subjects: [],
   });
   const [assignmentForm, setAssignmentForm] = useState({
     title: "",
@@ -601,8 +603,13 @@ const Admin = () => {
   const handleTeacherAssign = async (event) => {
     event.preventDefault();
 
-    if ((!teacherForm.teacherId && !teacherForm.teacherEmail) || !teacherForm.board || !teacherForm.classes) {
-      alert("Select or enter a teacher, board and at least one class.");
+    if (
+      (!teacherForm.teacherId && !teacherForm.teacherEmail) ||
+      !teacherForm.board ||
+      !teacherForm.className ||
+      !teacherForm.subjects.length
+    ) {
+      alert("Select or enter a teacher, board, class and at least one subject.");
       return;
     }
 
@@ -610,12 +617,11 @@ const Admin = () => {
     try {
       await API.post("/admin/teachers/assign", {
         ...teacherForm,
-        classes: teacherForm.classes
-          .split(",")
-          .map((className) => className.trim())
-          .filter(Boolean),
+        classes: [{ className: teacherForm.className, subjects: teacherForm.subjects }],
+        mergeClasses: true,
       });
-      setTeacherForm({ teacherId: "", teacherEmail: "", teacherName: "", board: "", classes: "" });
+      setTeacherForm({ teacherId: "", teacherEmail: "", teacherName: "", board: "", className: "", subjects: [] });
+      setTeacherSubjects([]);
       await loadTeachers();
       await loadDashboard();
       alert("Teacher assignment saved");
@@ -1241,14 +1247,40 @@ const Admin = () => {
                       <span className="text-xs font-black uppercase tracking-wide text-slate-500">Board</span>
                       <SearchableSelect
                         value={teacherForm.board}
-                        onChange={(value) => setTeacherForm({ ...teacherForm, board: value })}
+                        onChange={async (value) => {
+                          const selectedBoard = boards.find((board) => board.name === value);
+                          setTeacherForm({ ...teacherForm, board: value, className: "", subjects: [] });
+                          const availableSubjects = selectedBoard
+                            ? await dispatch(fetchSubjects(selectedBoard._id)).unwrap()
+                            : [];
+                          setTeacherSubjects(availableSubjects || []);
+                        }}
                         placeholder="Select Board"
                         options={boards.map((board) => [board.name, board.name])}
                       />
                     </label>
-                    <label className="space-y-1 lg:col-span-4">
+                    <label className="space-y-1 lg:col-span-2">
                       <span className="text-xs font-black uppercase tracking-wide text-slate-500">Classes</span>
-                      <input value={teacherForm.classes} onChange={(event) => setTeacherForm({ ...teacherForm, classes: event.target.value })} className="w-full rounded-lg border border-slate-200 p-3 text-sm" placeholder="10, 11, 12" />
+                      <SearchableSelect
+                        value={teacherForm.className}
+                        onChange={(value) => setTeacherForm({ ...teacherForm, className: value })}
+                        placeholder="Select Class"
+                        options={Array.from({ length: 12 }, (_, index) => {
+                          const className = String(index + 1);
+                          return [className, `Grade ${className}`];
+                        })}
+                      />
+                    </label>
+                    <label className="space-y-1 lg:col-span-2">
+                      <span className="text-xs font-black uppercase tracking-wide text-slate-500">Subjects</span>
+                      <SearchableSelect
+                        value={teacherForm.subjects}
+                        onChange={(subjects) => setTeacherForm({ ...teacherForm, subjects })}
+                        placeholder={teacherForm.board ? "Select one or more subjects" : "Select a board first"}
+                        options={teacherSubjects.map((subject) => [subject.name, subject.name])}
+                        disabled={!teacherForm.board}
+                        multiple
+                      />
                     </label>
                     <button disabled={teacherSaving} className="rounded-lg bg-slate-950 px-5 py-3 text-sm font-black text-white disabled:bg-slate-300">
                       {teacherSaving ? "Saving..." : "Assign Teacher"}
@@ -1282,6 +1314,7 @@ const Admin = () => {
                         {assignedClasses.map((entry, index) => (
                           <span key={entry.className || index} className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700">
                             Grade {entry.className || entry}
+                            {entry.subjects?.length ? ` · ${entry.subjects.join(", ")}` : ""}
                           </span>
                         ))}
                       </div>

@@ -26,6 +26,7 @@ const SearchableSelect = ({
   className = "",
   disabled = false,
   size = "default",
+  multiple = false,
 }) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -37,7 +38,11 @@ const SearchableSelect = ({
     return emptyOption ? [normalizeOption(emptyOption), ...baseOptions] : baseOptions;
   }, [emptyOption, options]);
 
+  const selectedValues = multiple && Array.isArray(value) ? value : [];
   const selectedOption = normalizedOptions.find((option) => String(option.value) === String(value));
+  const selectedOptions = multiple
+    ? normalizedOptions.filter((option) => selectedValues.some((item) => String(item) === String(option.value)))
+    : [];
 
   const filteredOptions = normalizedOptions.filter((option) =>
     String(option.label).toLowerCase().includes(query.trim().toLowerCase())
@@ -62,6 +67,13 @@ const SearchableSelect = ({
   }, [open]);
 
   const handleSelect = (optionValue) => {
+    if (multiple) {
+      const selected = selectedValues.some((item) => String(item) === String(optionValue));
+      onChange(selected
+        ? selectedValues.filter((item) => String(item) !== String(optionValue))
+        : [...selectedValues, optionValue]);
+      return;
+    }
     onChange(optionValue);
     setOpen(false);
   };
@@ -79,8 +91,8 @@ const SearchableSelect = ({
           compact ? "p-2 shadow-none" : "p-3 shadow-sm"
         }`}
       >
-        <span className={selectedOption ? "truncate" : "truncate text-slate-400"}>
-          {selectedOption?.label || placeholder}
+        <span className={(multiple ? selectedOptions.length : selectedOption) ? "truncate" : "truncate text-slate-400"}>
+          {multiple ? selectedOptions.map((option) => option.label).join(", ") || placeholder : selectedOption?.label || placeholder}
         </span>
         <ChevronDown size={16} className={`shrink-0 text-slate-500 transition ${open ? "rotate-180" : ""}`} />
       </button>
@@ -102,7 +114,9 @@ const SearchableSelect = ({
               <div className="px-3 py-3 text-sm font-semibold text-slate-500">No options found</div>
             )}
             {filteredOptions.map((option) => {
-              const selected = String(option.value) === String(value);
+              const selected = multiple
+                ? selectedValues.some((item) => String(item) === String(option.value))
+                : String(option.value) === String(value);
               return (
                 <button
                   key={`${option.value}-${option.label}`}
