@@ -54,10 +54,14 @@ const initialAssignment = {
   season: "",
   paperName: "",
   variant: "1",
+  testLink: "",
+  maximumMarks: "",
+  markingSchemeLink: "",
 };
 
-const emptyQuestionRow = () => ({
+const emptyQuestionRow = (board = "") => ({
   id: Date.now() + Math.random(),
+  board,
   subject: "",
   topic: "",
   year: "",
@@ -80,7 +84,7 @@ const TeacherDashboard = () => {
   const activeTab = TEACHER_TAB_IDS.includes(tab) ? tab : "overview";
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [context, setContext] = useState({ assignment: null, students: [], sessions: [] });
+  const [context, setContext] = useState({ assignment: null, assignments: [], students: [], sessions: [] });
   const [sessionForm, setSessionForm] = useState(initialSession);
   const [assignmentForm, setAssignmentForm] = useState(initialAssignment);
   const [assignmentFile, setAssignmentFile] = useState(null);
@@ -99,18 +103,29 @@ const TeacherDashboard = () => {
   const teacherEmail = clerkUser?.primaryEmailAddress?.emailAddress || "";
   const teacherName = clerkUser?.fullName || clerkUser?.firstName || "Teacher";
   const assignment = context.assignment;
-  const assignedClasses = assignment?.classes || [];
+  const teacherAssignments = useMemo(
+    () => context.assignments?.length ? context.assignments : (assignment ? [assignment] : []),
+    [assignment, context.assignments]
+  );
+  const boardOptions = useMemo(
+    () => [...new Set(teacherAssignments.map((entry) => entry.board).filter(Boolean))].sort(),
+    [teacherAssignments]
+  );
 
   const classOptions = useMemo(() => {
-    return assignedClasses.map((entry) => ({
-      className: entry.className,
-      subjects: entry.subjects?.length ? entry.subjects : ["General"],
-    }));
-  }, [assignedClasses]);
+    return teacherAssignments.flatMap((teacherAssignment) =>
+      (teacherAssignment.classes || []).map((entry) => ({
+        board: teacherAssignment.board,
+        className: entry.className,
+        subjects: entry.subjects?.length ? entry.subjects : ["General"],
+      }))
+    );
+  }, [teacherAssignments]);
 
   const workspaces = useMemo(() => classOptions.flatMap((entry) =>
     entry.subjects.map((subject) => ({
-      key: `${entry.className}::${subject}`,
+      key: `${entry.board}::${entry.className}::${subject}`,
+      board: entry.board,
       className: entry.className,
       subject,
     }))
@@ -119,25 +134,44 @@ const TeacherDashboard = () => {
 
   const assignmentSubjectOptions = useMemo(() => {
     const selectedClass = classOptions.find(
-      (entry) => String(entry.className) === String(assignmentForm.className)
+      (entry) =>
+        entry.board === assignmentForm.board &&
+        String(entry.className) === String(assignmentForm.className)
     );
-    const subjects = selectedClass?.subjects?.length
-      ? selectedClass.subjects
-      : classOptions.flatMap((entry) => entry.subjects || []);
-    return Array.from(new Set(subjects.filter(Boolean))).sort((a, b) => a.localeCompare(b));
-  }, [assignmentForm.className, classOptions]);
+    return [...new Set((selectedClass?.subjects || []).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  }, [assignmentForm.board, assignmentForm.className, classOptions]);
+
+  const assignmentClassOptions = useMemo(
+    () => classOptions.filter((entry) => entry.board === assignmentForm.board),
+    [assignmentForm.board, classOptions]
+  );
 
   const sessionSubjectOptions = useMemo(() => {
     return classOptions.find(
-      (entry) => String(entry.className) === String(sessionForm.className)
+      (entry) =>
+        entry.board === sessionForm.board &&
+        String(entry.className) === String(sessionForm.className)
     )?.subjects || [];
-  }, [sessionForm.className, classOptions]);
+  }, [sessionForm.board, sessionForm.className, classOptions]);
+
+  const sessionClassOptions = useMemo(
+    () => classOptions.filter((entry) => entry.board === sessionForm.board),
+    [classOptions, sessionForm.board]
+  );
+
+  const questionSubjectsForBoard = (board) => [...new Set(
+    classOptions
+      .filter((entry) => entry.board === board)
+      .flatMap((entry) => entry.subjects || [])
+      .filter(Boolean)
+  )].sort((a, b) => a.localeCompare(b));
 
   const assignmentStudentOptions = useMemo(() => {
     return (context.students || [])
+      .filter((student) => !assignmentForm.board || student.board === assignmentForm.board)
       .filter((student) => !assignmentForm.className || String(student.studentClass || "") === String(assignmentForm.className))
       .sort((a, b) => (a.name || a.email || "").localeCompare(b.name || b.email || ""));
-  }, [assignmentForm.className, context.students]);
+  }, [assignmentForm.board, assignmentForm.className, context.students]);
 
   const yearOptions = useMemo(() => {
     const currentYear = new Date().getFullYear();
@@ -185,14 +219,14 @@ const TeacherDashboard = () => {
       const token = await getToken();
       const response = await API.get("/classroom/resources", { params: {
         teacherEmail,
-        board: assignment?.board,
+        board: selectedWorkspace.board,
         className: selectedWorkspace.className,
         subject: selectedWorkspace.subject,
       }, headers: { Authorization: `Bearer ${token}` }});
       setClassroomResources(response.data.data || []);
     };
     loadResources().catch((err) => setError(err.response?.data?.error || "Unable to load class content"));
-  }, [assignment?.board, selectedWorkspace?.key, teacherEmail]);
+  }, [selectedWorkspace?.key, teacherEmail]);
 
   const publishResource = async (event) => {
     event.preventDefault();
@@ -204,13 +238,13 @@ const TeacherDashboard = () => {
         ...resourceForm,
         teacherEmail,
         teacherName,
-        board: assignment?.board,
+        board: selectedWorkspace.board,
         className: selectedWorkspace.className,
         subject: selectedWorkspace.subject,
       }, { headers: { Authorization: `Bearer ${token}` } });
       setResourceForm({ title: "", description: "", driveUrl: "", deadline: "" });
       const response = await API.get("/classroom/resources", { params: {
-        teacherEmail, board: assignment?.board, className: selectedWorkspace.className, subject: selectedWorkspace.subject,
+        teacherEmail, board: selectedWorkspace.board, className: selectedWorkspace.className, subject: selectedWorkspace.subject,
       }, headers: { Authorization: `Bearer ${token}` }});
       setClassroomResources(response.data.data || []);
     } catch (err) {
@@ -227,7 +261,7 @@ const TeacherDashboard = () => {
       await API.post("/classroom/student-notes", {
         teacherEmail,
         studentId: student._id,
-        board: assignment?.board,
+        board: selectedWorkspace.board,
         className: selectedWorkspace.className,
         subject: selectedWorkspace.subject,
         comment: studentComment.comment,
@@ -255,7 +289,7 @@ const TeacherDashboard = () => {
     if (!selectedWorkspace) return;
     setSessionForm({
       ...initialSession,
-      board: assignment?.board || "",
+      board: selectedWorkspace.board,
       className: selectedWorkspace.className,
       subject: selectedWorkspace.subject,
       startsAt: `${dateValue}T09:00`,
@@ -265,12 +299,23 @@ const TeacherDashboard = () => {
   };
 
   const applyClassToForm = (className, setter) => {
-    const selected = classOptions.find((entry) => entry.className === className);
     setter((current) => ({
       ...current,
       className,
-      board: assignment?.board || "",
-      subject: selected?.subjects?.[0] || current.subject || "General",
+      subject:
+        classOptions.find(
+          (entry) => entry.board === current.board && String(entry.className) === String(className)
+        )?.subjects?.[0] || "",
+      ...(Object.prototype.hasOwnProperty.call(current, "targetStudentEmail") ? { targetStudentEmail: "" } : {}),
+    }));
+  };
+
+  const applyBoardToForm = (board, setter) => {
+    setter((current) => ({
+      ...current,
+      board,
+      className: "",
+      subject: "",
       ...(Object.prototype.hasOwnProperty.call(current, "targetStudentEmail") ? { targetStudentEmail: "" } : {}),
     }));
   };
@@ -298,8 +343,16 @@ const TeacherDashboard = () => {
   const publishAssignment = async (event) => {
     event.preventDefault();
 
-    if (assignmentForm.type === "paper" && !assignmentFile) {
-      alert("Upload a question paper first.");
+    if (!assignmentForm.board || !assignmentForm.className || !assignmentForm.subject) {
+      alert("Select a board, class and subject.");
+      return;
+    }
+    if (!assignmentForm.maximumMarks || Number(assignmentForm.maximumMarks) <= 0) {
+      alert("Enter maximum marks greater than zero.");
+      return;
+    }
+    if (assignmentForm.type === "paper" && !assignmentFile && !assignmentForm.testLink.trim()) {
+      alert("Upload a question paper file or enter a test link.");
       return;
     }
 
@@ -322,9 +375,9 @@ const TeacherDashboard = () => {
       await API.post("/exams/assignments", formData, { headers: { Authorization: `Bearer ${token}` } });
       setAssignmentForm(initialAssignment);
       setAssignmentFile(null);
-      alert("Question paper published to students.");
+      alert("Test published to students.");
     } catch (err) {
-      alert(err.response?.data?.error || "Unable to publish question paper");
+      alert(err.response?.data?.error || "Unable to publish test");
     } finally {
       setSaving(false);
     }
@@ -336,8 +389,14 @@ const TeacherDashboard = () => {
     );
   };
 
+  const updateQuestionBoard = (id, board) => {
+    setQuestionRows((currentRows) =>
+      currentRows.map((row) => row.id === id ? { ...row, board, subject: "" } : row)
+    );
+  };
+
   const addQuestionRow = () => {
-    setQuestionRows((currentRows) => [...currentRows, emptyQuestionRow()]);
+    setQuestionRows((currentRows) => [...currentRows, emptyQuestionRow(currentRows.at(-1)?.board || "")]);
   };
 
   const deleteQuestionRow = (id) => {
@@ -349,13 +408,15 @@ const TeacherDashboard = () => {
   const uploadQuestionBankRows = async (event) => {
     event.preventDefault();
 
-    const cleanedRows = questionRows.map(({ id, ...row }) => ({
-      ...row,
-      board: assignment?.board || "",
-    }));
+    const cleanedRows = questionRows.map((row) => {
+      const cleanedRow = { ...row };
+      delete cleanedRow.id;
+      return cleanedRow;
+    });
 
     for (const row of cleanedRows) {
       if (
+        !row.board ||
         !row.subject ||
         !row.topic ||
         !row.year ||
@@ -363,7 +424,7 @@ const TeacherDashboard = () => {
         !row.questionNumber ||
         !row.questionPaper
       ) {
-        alert("Fill subject, topic, year, paper, question number and at least one question paper link.");
+        alert("Select board and subject, then fill topic, year, paper, question number and at least one question paper link.");
         return;
       }
     }
@@ -401,7 +462,7 @@ const TeacherDashboard = () => {
 
   const tabs = [
     { id: "overview", label: "Classes", icon: LayoutDashboard },
-    { id: "papers", label: "Question Papers", icon: FileQuestion },
+    { id: "papers", label: "Add New Test", icon: FileQuestion },
     { id: "calendar", label: "Calendar", icon: CalendarDays },
     { id: "remarks", label: "Teacher Remarks", icon: MessageSquareText },
     { id: "submissions", label: "Student Work", icon: ClipboardCheck },
@@ -578,8 +639,21 @@ const TeacherDashboard = () => {
                         {questionRows.map((row) => (
                           <tr key={row.id} className="align-top">
                             <td className="space-y-2 p-3">
-                              <input value={assignment?.board || ""} readOnly className="w-full rounded-lg border border-slate-200 bg-slate-50 p-2 text-sm font-bold text-slate-500" />
-                              <input placeholder="Subject" value={row.subject} onChange={(event) => updateQuestionRow(row.id, "subject", event.target.value)} className="w-full rounded-lg border border-slate-200 p-2 text-sm outline-none focus:border-indigo-400" />
+                              <SearchableSelect
+                                value={row.board}
+                                onChange={(value) => updateQuestionBoard(row.id, value)}
+                                placeholder="Board"
+                                size="compact"
+                                options={boardOptions.map((board) => [board, board])}
+                              />
+                              <SearchableSelect
+                                value={row.subject}
+                                onChange={(value) => updateQuestionRow(row.id, "subject", value)}
+                                placeholder={row.board ? "Subject" : "Select board first"}
+                                size="compact"
+                                disabled={!row.board}
+                                options={questionSubjectsForBoard(row.board).map((subject) => [subject, subject])}
+                              />
                               <input placeholder="Topic" value={row.topic} onChange={(event) => updateQuestionRow(row.id, "topic", event.target.value)} className="w-full rounded-lg border border-slate-200 p-2 text-sm outline-none focus:border-indigo-400" />
                             </td>
                             <td className="space-y-2 p-3">
@@ -639,9 +713,9 @@ const TeacherDashboard = () => {
               </div>
 
               <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-                <h3 className="text-lg font-black">Publish Assignment To Students</h3>
+                <h3 className="text-lg font-black">Add New Test</h3>
                 <p className="mt-1 text-sm font-semibold text-slate-500">
-                  Publish a custom question paper or quiz to students in one of your assigned classes.
+                  Create and assign a test using a question-paper file or an external test link.
                 </p>
 
                 <form onSubmit={publishAssignment} className="mt-5 grid gap-4 lg:grid-cols-3">
@@ -649,18 +723,25 @@ const TeacherDashboard = () => {
                   <Select label="Type" value={assignmentForm.type} onChange={(value) => setAssignmentForm({ ...assignmentForm, type: value })} options={[["paper", "Custom paper"], ["quiz", "Quiz"]]} />
                   <Input label="Duration minutes" type="number" value={assignmentForm.durationMinutes} onChange={(value) => setAssignmentForm({ ...assignmentForm, durationMinutes: value })} />
                   <Select
+                    label="Board"
+                    value={assignmentForm.board}
+                    onChange={(value) => applyBoardToForm(value, setAssignmentForm)}
+                    options={boardOptions.map((board) => [board, board])}
+                  />
+                  <Select
                     label="Class"
                     value={assignmentForm.className}
                     onChange={(value) => applyClassToForm(value, setAssignmentForm)}
-                    options={classOptions.map((entry) => [entry.className, `Grade ${entry.className}`])}
+                    options={assignmentClassOptions.map((entry) => [entry.className, `Grade ${entry.className}`])}
                   />
-                  <Input label="Board" value={assignmentForm.board} onChange={(value) => setAssignmentForm({ ...assignmentForm, board: value })} />
                   <Select
-                    label="Subject"
+                    label="Subject Name"
                     value={assignmentForm.subject}
                     onChange={(value) => setAssignmentForm({ ...assignmentForm, subject: value })}
+                    emptyLabel={assignmentForm.board ? "Select subject" : "Select board first"}
                     options={assignmentSubjectOptions.map((subject) => [subject, subject])}
                   />
+                  <Input label="Maximum marks" type="number" value={assignmentForm.maximumMarks} onChange={(value) => setAssignmentForm({ ...assignmentForm, maximumMarks: value })} />
                   <Select
                     label="Assign To"
                     value={assignmentForm.targetStudentEmail}
@@ -702,11 +783,22 @@ const TeacherDashboard = () => {
                       />
                     </>
                   ) : (
-                    <label className="space-y-1 lg:col-span-2">
-                      <span className="text-xs font-black uppercase tracking-wide text-slate-500">Question paper file</span>
-                      <input type="file" accept=".pdf,image/*" onChange={(event) => setAssignmentFile(event.target.files?.[0] || null)} className="w-full rounded-lg border border-slate-200 p-3 text-sm" />
-                    </label>
+                    <>
+                      <label className="space-y-1">
+                        <span className="text-xs font-black uppercase tracking-wide text-slate-500">Question paper file</span>
+                        <input type="file" accept=".pdf,image/*" onChange={(event) => setAssignmentFile(event.target.files?.[0] || null)} className="w-full rounded-lg border border-slate-200 p-3 text-sm" />
+                      </label>
+                      <Input label="Test link" type="url" value={assignmentForm.testLink} onChange={(value) => setAssignmentForm({ ...assignmentForm, testLink: value })} />
+                    </>
                   )}
+                  <label className="space-y-1 lg:col-span-2">
+                    <span className="text-xs font-black uppercase tracking-wide text-slate-500">Marking scheme link</span>
+                    <input type="url" value={assignmentForm.markingSchemeLink} onChange={(event) => setAssignmentForm({ ...assignmentForm, markingSchemeLink: event.target.value })} className="w-full rounded-lg border border-slate-200 p-3 text-sm" placeholder="https://..." />
+                    <span className="block text-xs font-semibold text-amber-700">Students can access this only after submitting the test.</span>
+                  </label>
+                  <div className="flex items-end rounded-lg bg-slate-50 p-3 text-xs font-semibold text-slate-500">
+                    Creation date and time are recorded automatically when published.
+                  </div>
                   <label className="space-y-1 lg:col-span-3">
                     <span className="text-xs font-black uppercase tracking-wide text-slate-500">Instructions</span>
                     <textarea value={assignmentForm.instructions} onChange={(event) => setAssignmentForm({ ...assignmentForm, instructions: event.target.value })} className="h-24 w-full rounded-lg border border-slate-200 p-3 text-sm" />
@@ -726,16 +818,22 @@ const TeacherDashboard = () => {
                 <div className="mt-4 grid gap-4">
                   <Input label="Class title" value={sessionForm.title} onChange={(value) => setSessionForm({ ...sessionForm, title: value })} />
                   <Select
+                    label="Board"
+                    value={sessionForm.board}
+                    onChange={(value) => applyBoardToForm(value, setSessionForm)}
+                    options={boardOptions.map((board) => [board, board])}
+                  />
+                  <Select
                     label="Class"
                     value={sessionForm.className}
                     onChange={(value) => applyClassToForm(value, setSessionForm)}
-                    options={classOptions.map((entry) => [entry.className, `Grade ${entry.className}`])}
+                    options={sessionClassOptions.map((entry) => [entry.className, `Grade ${entry.className}`])}
                   />
-                  <Input label="Board" value={sessionForm.board} onChange={(value) => setSessionForm({ ...sessionForm, board: value })} />
                   <Select
-                    label="Subject"
+                    label="Subject Name"
                     value={sessionForm.subject}
                     onChange={(value) => setSessionForm({ ...sessionForm, subject: value })}
+                    emptyLabel={sessionForm.board ? "Select subject" : "Select board first"}
                     options={sessionSubjectOptions.map((subject) => [subject, subject])}
                   />
                   <Input label="Starts at" type="datetime-local" value={sessionForm.startsAt} onChange={(value) => setSessionForm({ ...sessionForm, startsAt: value })} />

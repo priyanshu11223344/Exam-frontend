@@ -471,7 +471,11 @@ const UserDashboard = () => {
                           <h3 className="mt-3 text-xl font-black text-slate-900">{exam.title}</h3>
                           <p className="mt-1 text-sm font-semibold text-slate-500">
                             {exam.subject} • {exam.durationMinutes || 60} mins
+                            {exam.maximumMarks ? ` • ${exam.maximumMarks} marks` : ""}
                             {exam.dueAt ? ` • Due ${new Date(exam.dueAt).toLocaleString()}` : ""}
+                          </p>
+                          <p className="mt-1 text-xs font-semibold text-slate-400">
+                            Created {new Date(exam.createdAt).toLocaleString()}
                           </p>
                           {exam.instructions && <p className="mt-3 text-sm text-slate-600">{exam.instructions}</p>}
                         </div>
@@ -481,14 +485,23 @@ const UserDashboard = () => {
                             Start Quiz
                           </button>
                         ) : (
-                          <a
-                            href={exam.questionPaper?.url || `${API.defaults.baseURL?.replace("/api", "")}${exam.questionPaper?.path}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="rounded-2xl bg-slate-900 px-5 py-3 text-center text-xs font-black uppercase tracking-widest text-white"
-                          >
-                            Open Paper
-                          </a>
+                          <div className="flex flex-wrap gap-2">
+                            {exam.questionPaper && (
+                              <a
+                                href={exam.questionPaper.url || `${API.defaults.baseURL?.replace("/api", "")}${exam.questionPaper.path}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="rounded-2xl bg-slate-900 px-5 py-3 text-center text-xs font-black uppercase tracking-widest text-white"
+                              >
+                                Open Paper
+                              </a>
+                            )}
+                            {exam.testLink && (
+                              <a href={exam.testLink} target="_blank" rel="noreferrer" className="rounded-2xl bg-indigo-600 px-5 py-3 text-center text-xs font-black uppercase tracking-widest text-white">
+                                Open Test Link
+                              </a>
+                            )}
+                          </div>
                         )}
                       </div>
 
@@ -520,6 +533,11 @@ const UserDashboard = () => {
                           </div>
                         </div>
                       )}
+                      {exam.markingSchemeLink && (
+                        <a href={exam.markingSchemeLink} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-3 text-xs font-black uppercase tracking-widest text-emerald-700">
+                          <ExternalLink size={15} /> Open Marking Scheme
+                        </a>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -531,7 +549,7 @@ const UserDashboard = () => {
             <section className="bg-white rounded-3xl border border-slate-200 p-8">
               <h2 className="text-2xl font-black text-slate-900">Performance</h2>
               <p className="mt-2 text-slate-500 font-semibold">Submitted and checked work from your teachers.</p>
-              <div className="mt-6 space-y-3">{submissions.map((submission) => <div key={submission._id} className="rounded-xl border border-slate-100 bg-slate-50 p-4"><div className="flex items-center justify-between gap-3"><div><p className="font-black">{submission.assignment?.title || "Submitted work"}</p><p className="text-sm text-slate-500">{submission.assignment?.subject} · {new Date(submission.submittedAt || submission.updatedAt).toLocaleString()}</p></div><span className={`rounded-full px-3 py-1 text-xs font-black ${submission.status === "graded" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{submission.status}</span></div>{submission.status === "graded" && <div className="mt-3 rounded-lg bg-white p-3"><p className="font-black">Grade: {submission.grade || `${submission.quizResult?.score || 0}/${submission.quizResult?.total || 0}`}</p><p className="text-sm text-slate-600">{submission.feedback || "No additional feedback."}</p></div>}</div>)}{submissions.length === 0 && <p className="mt-4 text-sm text-slate-500">No submissions yet.</p>}</div>
+              <div className="mt-6 space-y-3">{submissions.map((submission) => <div key={submission._id} className="rounded-xl border border-slate-100 bg-slate-50 p-4"><div className="flex items-center justify-between gap-3"><div><p className="font-black">{submission.assignment?.title || "Submitted work"}</p><p className="text-sm text-slate-500">{submission.assignment?.subject} · {new Date(submission.submittedAt || submission.updatedAt).toLocaleString()}</p></div><span className={`rounded-full px-3 py-1 text-xs font-black ${submission.status === "graded" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{submission.status}</span></div>{submission.status === "graded" && <div className="mt-3 rounded-lg bg-white p-3"><p className="font-black">Grade: {submission.grade || `${submission.quizResult?.score || 0}/${submission.quizResult?.total || 0}`}</p>{submission.assignment?.maximumMarks && <p className="text-xs font-bold text-slate-500">Maximum marks: {submission.assignment.maximumMarks}</p>}<p className="text-sm text-slate-600">{submission.feedback || "No additional feedback."}</p></div>}{submission.assignment?.markingSchemeLink && <a href={submission.assignment.markingSchemeLink} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-2 text-sm font-black text-emerald-700"><ExternalLink size={15} />Open marking scheme</a>}</div>)}{submissions.length === 0 && <p className="mt-4 text-sm text-slate-500">No submissions yet.</p>}</div>
             </section>
           )}
 
