@@ -13,6 +13,7 @@ import Logo from "../assets/Aurethia_logo.avif"
 import API from '../api/axios';
 
 const STUDENT_TAB_IDS = ["dashboard", "exams", "calendar", "performance", "profile"];
+const PaperViewer = React.lazy(() => import("./PaperViewer"));
 
 const UserDashboard = () => {
   const dispatch = useDispatch();
@@ -44,6 +45,7 @@ const UserDashboard = () => {
   const [loadError, setLoadError] = useState("");
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState("");
+  const [paperViewer, setPaperViewer] = useState(null);
 
   const subjectNames = useMemo(() => Array.from(new Set([
     ...assignedExams.map((exam) => exam.subject),
@@ -211,6 +213,38 @@ const UserDashboard = () => {
       setRefreshKey((value) => value + 1);
     } catch (error) {
       alert(error.response?.data?.error || "Unable to submit answer sheets");
+    }
+  };
+
+  const openQuestionPaper = async (exam) => {
+    setPaperViewer({ title: exam.title, loading: true, error: "" });
+    try {
+      const token = await getToken();
+      const response = await API.get(`/exams/assignments/${exam._id}/paper`, {
+        headers: { Authorization: `Bearer ${token}` },
+        responseType: "blob",
+      });
+      const mimeType = String(response.headers["content-type"] || response.data.type || "").split(";")[0];
+      if (!["application/pdf", "image/png", "image/jpeg"].includes(mimeType)) {
+        throw new Error("The paper format is not supported.");
+      }
+      const data = mimeType === "application/pdf"
+        ? new Uint8Array(await response.data.arrayBuffer())
+        : undefined;
+      setPaperViewer({
+        title: exam.title,
+        loading: false,
+        error: "",
+        mimeType,
+        blob: response.data,
+        data,
+      });
+    } catch (error) {
+      setPaperViewer({
+        title: exam.title,
+        loading: false,
+        error: error.response?.data?.error || error.message || "Unable to open this paper.",
+      });
     }
   };
 
@@ -487,14 +521,13 @@ const UserDashboard = () => {
                         ) : (
                           <div className="flex flex-wrap gap-2">
                             {exam.questionPaper && (
-                              <a
-                                href={exam.questionPaper.url || `${API.defaults.baseURL?.replace("/api", "")}${exam.questionPaper.path}`}
-                                target="_blank"
-                                rel="noreferrer"
+                              <button
+                                type="button"
+                                onClick={() => openQuestionPaper(exam)}
                                 className="rounded-2xl bg-slate-900 px-5 py-3 text-center text-xs font-black uppercase tracking-widest text-white"
                               >
                                 Open Paper
-                              </a>
+                              </button>
                             )}
                             {exam.testLink && (
                               <a href={exam.testLink} target="_blank" rel="noreferrer" className="rounded-2xl bg-indigo-600 px-5 py-3 text-center text-xs font-black uppercase tracking-widest text-white">
@@ -661,6 +694,15 @@ const UserDashboard = () => {
             </form>
           </div>
         </div>
+      )}
+      {paperViewer && (
+        <React.Suspense fallback={<div className="fixed inset-0 z-[200] bg-slate-950" />}>
+          <PaperViewer
+            viewer={paperViewer}
+            watermark={`${user?.name || "Student"} • ${user?.email || user?.clerkId || "Aurethia"}`}
+            onClose={() => setPaperViewer(null)}
+          />
+        </React.Suspense>
       )}
     </div>
   );

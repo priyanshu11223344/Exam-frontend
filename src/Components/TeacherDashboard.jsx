@@ -818,7 +818,21 @@ const TeacherDashboard = () => {
                     <>
                       <label className="space-y-1">
                         <span className="text-xs font-black uppercase tracking-wide text-slate-500">Question paper file</span>
-                        <input type="file" accept=".pdf,image/*" onChange={(event) => setAssignmentFile(event.target.files?.[0] || null)} className="w-full rounded-lg border border-slate-200 p-3 text-sm" />
+                        <input
+                          type="file"
+                          accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
+                          onChange={(event) => {
+                            const file = event.target.files?.[0] || null;
+                            if (file && !["application/pdf", "image/png", "image/jpeg"].includes(file.type)) {
+                              event.target.value = "";
+                              setAssignmentFile(null);
+                              alert("Only PDF, PNG, and JPEG question papers are allowed.");
+                              return;
+                            }
+                            setAssignmentFile(file);
+                          }}
+                          className="w-full rounded-lg border border-slate-200 p-3 text-sm"
+                        />
                       </label>
                       <Input label="Test link" type="url" value={assignmentForm.testLink} onChange={(value) => setAssignmentForm({ ...assignmentForm, testLink: value })} />
                     </>
