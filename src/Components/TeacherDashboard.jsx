@@ -85,6 +85,7 @@ const TeacherDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [context, setContext] = useState({ assignment: null, assignments: [], students: [], sessions: [] });
+  const [boardSubjects, setBoardSubjects] = useState({});
   const [sessionForm, setSessionForm] = useState(initialSession);
   const [assignmentForm, setAssignmentForm] = useState(initialAssignment);
   const [assignmentFile, setAssignmentFile] = useState(null);
@@ -122,6 +123,24 @@ const TeacherDashboard = () => {
     );
   }, [teacherAssignments]);
 
+  const subjectOptionsByBoard = useMemo(() => {
+    const fallbackSubjects = classOptions.reduce((subjectsByBoard, entry) => {
+      const board = entry.board;
+      if (!board) return subjectsByBoard;
+      subjectsByBoard[board] = [...new Set([
+        ...(subjectsByBoard[board] || []),
+        ...(entry.subjects || []).filter((subject) => subject && subject !== "General"),
+      ])].sort((a, b) => a.localeCompare(b));
+      return subjectsByBoard;
+    }, {});
+
+    Object.entries(boardSubjects).forEach(([board, subjects]) => {
+      if (subjects.length) fallbackSubjects[board] = subjects;
+    });
+
+    return fallbackSubjects;
+  }, [boardSubjects, classOptions]);
+
   const workspaces = useMemo(() => classOptions.flatMap((entry) =>
     entry.subjects.map((subject) => ({
       key: `${entry.board}::${entry.className}::${subject}`,
@@ -133,13 +152,8 @@ const TeacherDashboard = () => {
   const selectedWorkspace = workspaces.find((item) => item.key === workspaceKey) || workspaces[0];
 
   const assignmentSubjectOptions = useMemo(() => {
-    const selectedClass = classOptions.find(
-      (entry) =>
-        entry.board === assignmentForm.board &&
-        String(entry.className) === String(assignmentForm.className)
-    );
-    return [...new Set((selectedClass?.subjects || []).filter(Boolean))].sort((a, b) => a.localeCompare(b));
-  }, [assignmentForm.board, assignmentForm.className, classOptions]);
+    return subjectOptionsByBoard[assignmentForm.board] || [];
+  }, [assignmentForm.board, subjectOptionsByBoard]);
 
   const assignmentClassOptions = useMemo(
     () => classOptions.filter((entry) => entry.board === assignmentForm.board),
@@ -147,24 +161,15 @@ const TeacherDashboard = () => {
   );
 
   const sessionSubjectOptions = useMemo(() => {
-    return classOptions.find(
-      (entry) =>
-        entry.board === sessionForm.board &&
-        String(entry.className) === String(sessionForm.className)
-    )?.subjects || [];
-  }, [sessionForm.board, sessionForm.className, classOptions]);
+    return subjectOptionsByBoard[sessionForm.board] || [];
+  }, [sessionForm.board, subjectOptionsByBoard]);
 
   const sessionClassOptions = useMemo(
     () => classOptions.filter((entry) => entry.board === sessionForm.board),
     [classOptions, sessionForm.board]
   );
 
-  const questionSubjectsForBoard = (board) => [...new Set(
-    classOptions
-      .filter((entry) => entry.board === board)
-      .flatMap((entry) => entry.subjects || [])
-      .filter(Boolean)
-  )].sort((a, b) => a.localeCompare(b));
+  const questionSubjectsForBoard = (board) => subjectOptionsByBoard[board] || [];
 
   const assignmentStudentOptions = useMemo(() => {
     return (context.students || [])
@@ -192,7 +197,33 @@ const TeacherDashboard = () => {
           "X-Local-User-Role": "teacher",
         },
       });
-      setContext(response.data.data);
+      const nextContext = response.data.data;
+      setContext(nextContext);
+
+      const assignedBoards = [...new Set(
+        (nextContext.assignments?.length ? nextContext.assignments : [nextContext.assignment])
+          .map((entry) => entry?.board)
+          .filter(Boolean)
+      )];
+      try {
+        const boardResponse = await API.get("/boards");
+        const boardCatalog = boardResponse.data.data || [];
+        const subjectEntries = await Promise.all(assignedBoards.map(async (boardName) => {
+          const board = boardCatalog.find(
+            (entry) => String(entry.name).trim().toLowerCase() === String(boardName).trim().toLowerCase()
+          );
+          if (!board) return [boardName, []];
+          const subjectResponse = await API.get(`/subjects/board/${board._id}`);
+          const subjects = [...new Set(
+            (subjectResponse.data.data || []).map((entry) => entry.name).filter(Boolean)
+          )].sort((a, b) => a.localeCompare(b));
+          return [boardName, subjects];
+        }));
+        setBoardSubjects(Object.fromEntries(subjectEntries));
+      } catch {
+        setBoardSubjects({});
+      }
+
       const token = await getToken();
       const submissionResponse = await API.get("/classroom/submissions", { params: { teacherEmail, limit: 100 }, headers: { Authorization: `Bearer ${token}` } });
       setTeacherSubmissions(submissionResponse.data.data || []);
@@ -303,6 +334,7 @@ const TeacherDashboard = () => {
       ...current,
       className,
       subject:
+        subjectOptionsByBoard[current.board]?.[0] ||
         classOptions.find(
           (entry) => entry.board === current.board && String(entry.className) === String(className)
         )?.subjects?.[0] || "",
